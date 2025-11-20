@@ -5,19 +5,27 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import Page from "./pages/Page";
 import NotFound from "./pages/NotFound";
+import Dashboard from "./pages/Dashboard";
+import Tasks from "./pages/Tasks";
+import Projects from "./pages/Projects";
+import OKRs from "./pages/OKRs";
+import Team from "./pages/Team";
+import Notifications from "./pages/Notifications";
 import { Menu } from "lucide-react";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+    <ThemeProvider defaultTheme="dark" storageKey="teamhub-theme">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
         <SidebarProvider>
           <div className="flex min-h-screen w-full">
             <AppSidebar />
@@ -29,8 +37,15 @@ const App = () => (
               </header>
               <main className="flex-1">
                 <Routes>
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/okrs" element={<OKRs />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/notifications" element={<Notifications />} />
                   <Route path="/page/:pageId" element={<Page />} />
+                  <Route path="/old-index" element={<Index />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
@@ -39,6 +54,7 @@ const App = () => (
         </SidebarProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

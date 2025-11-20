@@ -104,4 +104,32 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Forcer le mode dark par défaut */
+  html {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  /* Custom styles pour TeamHub */
+  .task-card {
+    @apply transition-all duration-200 hover:shadow-lg;
+  }
+
+  .task-card:hover {
+    @apply border-primary/50;
+  }
+
+  .notification-error {
+    @apply border-l-4 border-l-red-500;
+  }
+
+  .notification-warning {
+    @apply border-l-4 border-l-yellow-500;
+  }
+
+  .notification-info {
+    @apply border-l-4 border-l-blue-500;
+  }
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Plus, FileText, Folder, Search, Settings, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, FileText, Folder, Search, Settings, Trash2, Home, CheckSquare, FolderKanban, Target, Users, Bell } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -42,7 +42,8 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border">
       <SidebarContent className="p-3">
-        <div className="mb-4 space-y-2">
+        <div className="mb-4">
+          <h2 className="px-2 text-lg font-bold mb-4">📊 TeamHub</h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -54,9 +55,91 @@ export function AppSidebar() {
           </div>
         </div>
 
+        <SidebarGroup className="mb-4">
+          <SidebarGroupLabel className="px-2 text-xs font-medium text-muted-foreground mb-2">
+            Navigation
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/dashboard"
+                    className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-hover transition-colors"
+                    activeClassName="bg-primary text-primary-foreground"
+                  >
+                    <Home className="h-4 w-4" />
+                    {open && <span className="text-sm">Dashboard</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/tasks"
+                    className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-hover transition-colors"
+                    activeClassName="bg-primary text-primary-foreground"
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    {open && <span className="text-sm">Tâches</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/projects"
+                    className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-hover transition-colors"
+                    activeClassName="bg-primary text-primary-foreground"
+                  >
+                    <FolderKanban className="h-4 w-4" />
+                    {open && <span className="text-sm">Projets</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/okrs"
+                    className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-hover transition-colors"
+                    activeClassName="bg-primary text-primary-foreground"
+                  >
+                    <Target className="h-4 w-4" />
+                    {open && <span className="text-sm">OKRs</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/team"
+                    className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-hover transition-colors"
+                    activeClassName="bg-primary text-primary-foreground"
+                  >
+                    <Users className="h-4 w-4" />
+                    {open && <span className="text-sm">Équipe</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/notifications"
+                    className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-hover transition-colors"
+                    activeClassName="bg-primary text-primary-foreground"
+                  >
+                    <Bell className="h-4 w-4" />
+                    {open && <span className="text-sm">Notifications</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center justify-between px-2 text-xs font-medium text-muted-foreground">
-            <span>Workspace</span>
+            <span>Pages</span>
             <Button
               variant="ghost"
               size="icon"

@@ -1,0 +1,296 @@
+import { useEffect, useState } from 'react';
+import { taskService } from '../services/taskService';
+import { teamService } from '../services/teamService';
+import { Task } from '../lib/supabase';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Badge } from '../components/ui/badge';
+import { useToast } from '../hooks/use-toast';
+
+export default function Tasks() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  // Form state
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    priority: 'medium' as Task['priority'],
+    status: 'todo' as Task['status'],
+    assignee: '',
+    due_date: ''
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [tasksData, teamData] = await Promise.all([
+        taskService.getAllTasks(),
+        teamService.getAllTeam()
+      ]);
+      setTasks(tasksData || []);
+      setTeamMembers(teamData || []);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les données",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTask.title) {
+      toast({ title: "Erreur", description: "Le titre est requis", variant: "destructive" });
+      return;
+    }
+
+    const success = await taskService.addTask(newTask);
+    if (success) {
+      toast({ title: "Succès", description: "Tâche créée !" });
+      setShowForm(false);
+      setNewTask({
+        title: '',
+        description: '',
+        priority: 'medium',
+        status: 'todo',
+        assignee: '',
+        due_date: ''
+      });
+      loadData();
+    } else {
+      toast({ title: "Erreur", description: "Impossible de créer la tâche", variant: "destructive" });
+    }
+  };
+
+  const handleStatusChange = async (taskId: number, newStatus: string) => {
+    const success = await taskService.updateTaskStatus(taskId, newStatus);
+    if (success) {
+      toast({ title: "Succès", description: "Statut mis à jour" });
+      loadData();
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+      const success = await taskService.deleteTask(taskId);
+      if (success) {
+        toast({ title: "Succès", description: "Tâche supprimée" });
+        loadData();
+      }
+    }
+  };
+
+  const filteredTasks = searchQuery
+    ? tasks.filter(t =>
+        t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : tasks;
+
+  const getPriorityLabel = (priority: string) => {
+    const labels = { high: '🔴 Haute', medium: '🟡 Moyenne', low: '🟢 Basse' };
+    return labels[priority as keyof typeof labels] || priority;
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels = { todo: '📝 À faire', 'in-progress': '🚧 En cours', done: '✅ Terminé' };
+    return labels[status as keyof typeof labels] || status;
+  };
+
+  if (loading) {
+    return <div className="p-8">Chargement...</div>;
+  }
+
+  return (
+    <div className="p-8 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">✓ Gestion des Tâches</h1>
+        </div>
+        <Button onClick={() => setShowForm(!showForm)}>
+          {showForm ? '❌ Annuler' : '➕ Nouvelle tâche'}
+        </Button>
+      </div>
+
+      {/* Search */}
+      <Input
+        placeholder="Rechercher une tâche..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+
+      {/* Form */}
+      {showForm && (
+        <Card>
+          <CardContent className="pt-6">
+            <form onSubmit={handleAddTask} className="space-y-4">
+              <h3 className="text-lg font-semibold">➕ Nouvelle tâche</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Titre *</label>
+                  <Input
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                    placeholder="Ex: Finaliser le rapport Q4"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Priorité</label>
+                  <Select
+                    value={newTask.priority}
+                    onValueChange={(value) => setNewTask({ ...newTask, priority: value as Task['priority'] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">🟢 Basse</SelectItem>
+                      <SelectItem value="medium">🟡 Moyenne</SelectItem>
+                      <SelectItem value="high">🔴 Haute</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Assigné à</label>
+                  <Select
+                    value={newTask.assignee}
+                    onValueChange={(value) => setNewTask({ ...newTask, assignee: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Non assigné" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Non assigné</SelectItem>
+                      {teamMembers && teamMembers.length > 0 ? (
+                        teamMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.name}>
+                            {member.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="" disabled>Aucun membre disponible</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date limite</label>
+                  <Input
+                    type="date"
+                    value={newTask.due_date}
+                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <Textarea
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                    placeholder="Détails de la tâche..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="submit">✅ Créer la tâche</Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  Annuler
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Vue Kanban */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {['todo', 'in-progress', 'done'].map((status) => {
+          const statusTasks = filteredTasks.filter(t => t.status === status);
+          const label = getStatusLabel(status);
+
+          return (
+            <div key={status}>
+              <h3 className="font-semibold mb-3">
+                {label} ({statusTasks.length})
+              </h3>
+              <div className="space-y-3">
+                {statusTasks.map((task) => (
+                  <Card key={task.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="pt-6 space-y-3">
+                      <h4 className="font-semibold">{task.title}</h4>
+                      {task.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {task.description}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={task.priority === 'high' ? 'destructive' : 'default'}>
+                          {getPriorityLabel(task.priority)}
+                        </Badge>
+                        {task.assignee && (
+                          <span className="text-sm text-muted-foreground">
+                            👤 {task.assignee}
+                          </span>
+                        )}
+                        {task.due_date && (
+                          <span className="text-sm text-muted-foreground">
+                            📅 {task.due_date}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Select
+                          value={task.status}
+                          onValueChange={(value) => handleStatusChange(task.id, value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">📝 À faire</SelectItem>
+                            <SelectItem value="in-progress">🚧 En cours</SelectItem>
+                            <SelectItem value="done">✅ Terminé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteTask(task.id)}
+                        >
+                          🗑️
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
