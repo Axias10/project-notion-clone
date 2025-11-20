@@ -57,6 +57,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        hover: "hsl(var(--hover-bg))",
+        editor: "hsl(var(--editor-bg))",
+      },
+      fontFamily: {
+        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["Outfit", "Inter", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
