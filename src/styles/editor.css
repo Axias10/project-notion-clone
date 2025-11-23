@@ -113,6 +113,20 @@
   font-style: italic;
 }
 
+.ProseMirror u {
+  text-decoration: underline;
+}
+
+.ProseMirror a {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror a:hover {
+  color: #2563eb;
+}
+
 .ProseMirror hr {
   border: none;
   border-top: 2px solid #ddd;

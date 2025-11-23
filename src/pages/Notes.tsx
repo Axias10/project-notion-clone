@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
 import { noteService } from '../services/noteService';
 import { Note } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -27,6 +29,14 @@ export default function Notes() {
       StarterKit,
       Placeholder.configure({
         placeholder: 'Commencez à écrire votre note...',
+      }),
+      Underline,
+      Link.configure({
+        openOnClick: true,
+        HTMLAttributes: {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
       }),
     ],
     content: '',
@@ -283,6 +293,25 @@ export default function Notes() {
                   onClick={() => editor.chain().focus().toggleItalic().run()}
                 >
                   <em>I</em>
+                </Button>
+                <Button
+                  size="sm"
+                  variant={editor.isActive('underline') ? 'default' : 'ghost'}
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}
+                >
+                  <u>U</u>
+                </Button>
+                <Button
+                  size="sm"
+                  variant={editor.isActive('link') ? 'default' : 'ghost'}
+                  onClick={() => {
+                    const url = window.prompt('URL:');
+                    if (url) {
+                      editor.chain().focus().setLink({ href: url }).run();
+                    }
+                  }}
+                >
+                  🔗 Lien
                 </Button>
                 <Button
                   size="sm"
