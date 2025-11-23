@@ -67,57 +67,57 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="max-w-[1600px] mx-auto p-12 space-y-10">
       <div>
-        <h1 className="text-3xl font-bold">🏠 Dashboard</h1>
-        <p className="text-muted-foreground mt-2">Vue d'ensemble de vos projets et tâches</p>
+        <h1 className="text-[40px] font-bold tracking-tight mb-2">Dashboard</h1>
+        <p className="text-muted-foreground text-[15px]">Vue d'ensemble de vos projets et tâches</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-primary/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              ✅ Tâches complétées
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
+          <CardHeader className="pb-3 pt-5">
+            <CardTitle className="text-[13px] font-medium text-muted-foreground">
+              Tâches complétées
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-[32px] font-semibold tracking-tight">
               {completedTasks}/{totalTasks}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-blue-500/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              📁 Projets actifs
+        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
+          <CardHeader className="pb-3 pt-5">
+            <CardTitle className="text-[13px] font-medium text-muted-foreground">
+              Projets actifs
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeProjects}</div>
+            <div className="text-[32px] font-semibold tracking-tight">{activeProjects}</div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-green-500/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              🎯 OKRs on track
+        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
+          <CardHeader className="pb-3 pt-5">
+            <CardTitle className="text-[13px] font-medium text-muted-foreground">
+              OKRs on track
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{onTrackOKRs}</div>
+            <div className="text-[32px] font-semibold tracking-tight">{onTrackOKRs}</div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-purple-500/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              📈 Performance
+        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
+          <CardHeader className="pb-3 pt-5">
+            <CardTitle className="text-[13px] font-medium text-muted-foreground">
+              Performance
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{performance}%</div>
+            <div className="text-[32px] font-semibold tracking-tight">{performance}%</div>
           </CardContent>
         </Card>
       </div>
@@ -148,18 +148,18 @@ export default function Dashboard() {
       )}
 
       {/* Tâches en cours et Répartition */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4">🚧 Tâches en cours</h2>
+          <h2 className="text-[24px] font-semibold mb-5 tracking-tight">Tâches en cours</h2>
           {inProgressTasks.length > 0 ? (
             <div className="space-y-3">
               {inProgressTasks.slice(0, 5).map((task) => (
-                <Card key={task.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.01] cursor-pointer border-l-4 border-l-primary/30">
-                  <CardContent className="py-4">
+                <Card key={task.id} className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200 cursor-pointer">
+                  <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h3 className="font-semibold mb-2">{task.title}</h3>
-                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                        <h3 className="font-medium text-[15px] mb-2.5">{task.title}</h3>
+                        <div className="flex flex-wrap gap-2 text-[13px] text-muted-foreground">
                           <Badge variant={getPriorityColor(task.priority) as any}>
                             {getPriorityLabel(task.priority)}
                           </Badge>
@@ -182,9 +182,9 @@ export default function Dashboard() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold mb-4">📊 Répartition</h2>
-          <Card>
-            <CardContent className="py-4 space-y-4">
+          <h2 className="text-[24px] font-semibold mb-5 tracking-tight">Répartition</h2>
+          <Card className="border border-border/50 shadow-none">
+            <CardContent className="p-5 space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">📝 À faire</span>
                 <span className="font-semibold">
@@ -221,13 +221,13 @@ export default function Dashboard() {
 
       {/* Projets actifs */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">📁 Projets actifs</h2>
+        <h2 className="text-[24px] font-semibold mb-5 tracking-tight">Projets actifs</h2>
         {activeProjectsList.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {activeProjectsList.slice(0, 3).map((project) => (
-              <Card key={project.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="text-lg">{project.name}</CardTitle>
+              <Card key={project.id} className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200 cursor-pointer">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-[17px] font-semibold">{project.name}</CardTitle>
                   <Badge className="w-fit">🟢 Actif</Badge>
                 </CardHeader>
                 <CardContent className="space-y-4">

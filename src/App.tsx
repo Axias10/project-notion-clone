@@ -21,7 +21,7 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="dark" storageKey="teamhub-theme">
+    <ThemeProvider defaultTheme="light" storageKey="teamhub-theme">
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -30,12 +30,12 @@ const App = () => (
           <div className="flex min-h-screen w-full">
             <AppSidebar />
             <div className="flex-1 flex flex-col">
-              <header className="h-12 border-b border-border flex items-center px-4 bg-background sticky top-0 z-10">
-                <SidebarTrigger className="mr-4">
+              <header className="h-14 border-b border-border/50 flex items-center px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
+                <SidebarTrigger className="mr-4 hover:bg-muted/80 rounded-md p-2 transition-colors">
                   <Menu className="h-5 w-5" />
                 </SidebarTrigger>
               </header>
-              <main className="flex-1">
+              <main className="flex-1 bg-background">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
