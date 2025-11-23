@@ -16,6 +16,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -80,10 +81,22 @@ export default function Tasks() {
     loadData();
   };
 
+  const handleUpdateTask = async (taskId: number, updates: Partial<Task>) => {
+    const success = await taskService.updateTask(taskId, updates);
+    if (success) {
+      toast({ title: "Succès", description: "Tâche mise à jour" });
+      loadData();
+    }
+  };
+
   const handleDeleteTask = async (taskId: number) => {
     if (confirm('Supprimer cette tâche ?')) {
-      await taskService.deleteTask(taskId);
-      loadData();
+      const success = await taskService.deleteTask(taskId);
+      if (success) {
+        toast({ title: "Succès", description: "Tâche supprimée" });
+        setExpandedTaskId(null);
+        loadData();
+      }
     }
   };
 
@@ -206,8 +219,13 @@ export default function Tasks() {
               <div className="space-y-3">
                 {statusTasks.map((task) => {
                   const assignedMembers = getAssignedMembers(task);
+                  const isExpanded = expandedTaskId === task.id;
                   return (
-                    <Card key={task.id} className="hover:shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer">
+                    <Card
+                      key={task.id}
+                      className={`hover:shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer ${isExpanded ? 'ring-2 ring-primary shadow-lg' : ''}`}
+                      onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
+                    >
                       <CardContent className="pt-6 space-y-3">
                         <h4 className="font-semibold">{task.title}</h4>
                         {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}
@@ -228,21 +246,88 @@ export default function Tasks() {
                           </div>
                         )}
 
-                        <div className="flex gap-2">
-                          <Select value={task.status} onValueChange={(v) => handleStatusChange(task.id, v)}>
-                            <SelectTrigger className="h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="todo">À faire</SelectItem>
-                              <SelectItem value="in-progress">En cours</SelectItem>
-                              <SelectItem value="done">Terminé</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteTask(task.id)}>
-                            🗑️
-                          </Button>
-                        </div>
+                        {task.due_date && (
+                          <div className="text-sm text-muted-foreground">
+                            📅 {task.due_date}
+                          </div>
+                        )}
+
+                        {/* Edit Panel */}
+                        {isExpanded && (
+                          <div className="pt-4 border-t space-y-3" onClick={(e) => e.stopPropagation()}>
+                            <h4 className="font-semibold text-sm">Modifier la tâche</h4>
+
+                            <div className="space-y-2">
+                              <Input
+                                placeholder="Titre"
+                                defaultValue={task.title}
+                                onBlur={(e) => {
+                                  if (e.target.value !== task.title) {
+                                    handleUpdateTask(task.id, { title: e.target.value });
+                                  }
+                                }}
+                              />
+
+                              <Textarea
+                                placeholder="Description"
+                                defaultValue={task.description || ''}
+                                onBlur={(e) => {
+                                  if (e.target.value !== task.description) {
+                                    handleUpdateTask(task.id, { description: e.target.value });
+                                  }
+                                }}
+                              />
+
+                              <div>
+                                <label className="block text-xs text-muted-foreground mb-1">Statut</label>
+                                <Select
+                                  value={task.status}
+                                  onValueChange={(value) => handleUpdateTask(task.id, { status: value as Task['status'] })}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="todo">📝 À faire</SelectItem>
+                                    <SelectItem value="in-progress">🚧 En cours</SelectItem>
+                                    <SelectItem value="done">✅ Terminé</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs text-muted-foreground mb-1">Date d'échéance</label>
+                                <Input
+                                  type="date"
+                                  defaultValue={task.due_date || ''}
+                                  onBlur={(e) => {
+                                    if (e.target.value !== task.due_date) {
+                                      handleUpdateTask(task.id, { due_date: e.target.value || undefined });
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setExpandedTaskId(null)}
+                                className="flex-1"
+                              >
+                                Fermer
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                🗑️ Supprimer
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   );
