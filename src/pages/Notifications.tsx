@@ -139,7 +139,7 @@ export default function Notifications() {
               {errors.map((notif, index) => (
                 <Card
                   key={index}
-                  className={`border-l-4 ${getBorderColor(notif.type)} hover:shadow-md transition-shadow cursor-pointer`}
+                  className={`border-l-4 ${getBorderColor(notif.type)} hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-[1.01]`}
                   onClick={() => handleNotificationClick(notif)}
                 >
                   <CardContent className="py-4">

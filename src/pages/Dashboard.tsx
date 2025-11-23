@@ -75,7 +75,7 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-primary/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               ✅ Tâches complétées
@@ -88,7 +88,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-blue-500/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               📁 Projets actifs
@@ -99,7 +99,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-green-500/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               🎯 OKRs on track
@@ -110,7 +110,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] border-l-4 border-l-purple-500/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               📈 Performance
@@ -154,7 +154,7 @@ export default function Dashboard() {
           {inProgressTasks.length > 0 ? (
             <div className="space-y-3">
               {inProgressTasks.slice(0, 5).map((task) => (
-                <Card key={task.id} className="hover:shadow-md transition-shadow">
+                <Card key={task.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.01] cursor-pointer border-l-4 border-l-primary/30">
                   <CardContent className="py-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -225,7 +225,7 @@ export default function Dashboard() {
         {activeProjectsList.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {activeProjectsList.slice(0, 3).map((project) => (
-              <Card key={project.id} className="hover:shadow-md transition-shadow">
+              <Card key={project.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer">
                 <CardHeader>
                   <CardTitle className="text-lg">{project.name}</CardTitle>
                   <Badge className="w-fit">🟢 Actif</Badge>
