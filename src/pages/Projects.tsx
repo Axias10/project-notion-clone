@@ -204,7 +204,7 @@ export default function Projects() {
           return (
             <Card
               key={project.id}
-              className={`hover:shadow-lg transition-all cursor-pointer ${isExpanded ? 'ring-2 ring-primary' : ''}`}
+              className={`hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-[1.02] ${isExpanded ? 'ring-2 ring-primary shadow-lg' : ''}`}
             >
               <CardHeader onClick={() => setExpandedProjectId(isExpanded ? null : project.id)}>
                 <CardTitle className="text-lg flex items-start justify-between">

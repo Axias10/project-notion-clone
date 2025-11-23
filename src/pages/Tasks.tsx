@@ -151,7 +151,7 @@ export default function Tasks() {
               </h3>
               <div className="space-y-3">
                 {statusTasks.map((task) => (
-                  <Card key={task.id}>
+                  <Card key={task.id} className="hover:shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer">
                     <CardContent className="pt-6 space-y-3">
                       <h4 className="font-semibold">{task.title}</h4>
                       {task.description && <p className="text-sm text-muted-foreground">{task.description}</p>}

@@ -198,7 +198,7 @@ export default function Team() {
           return (
             <Card
               key={member.id}
-              className={`hover:shadow-lg transition-all cursor-pointer ${isExpanded ? 'ring-2 ring-primary' : ''}`}
+              className={`hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-[1.02] ${isExpanded ? 'ring-2 ring-primary shadow-lg' : ''}`}
               onClick={() => !isExpanded && setExpandedMemberId(member.id)}
             >
               <CardContent className="pt-6 space-y-4">

@@ -271,7 +271,7 @@ export default function OKRs() {
           return (
             <Card
               key={okr.id}
-              className={`hover:shadow-lg transition-all ${isExpanded ? 'ring-2 ring-primary' : ''}`}
+              className={`hover:shadow-lg transition-all duration-300 hover:scale-[1.01] ${isExpanded ? 'ring-2 ring-primary shadow-lg' : ''}`}
             >
               <CardHeader
                 className="cursor-pointer"
