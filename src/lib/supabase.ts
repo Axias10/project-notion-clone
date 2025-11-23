@@ -14,7 +14,8 @@ export interface Task {
   description?: string;
   priority: 'low' | 'medium' | 'high';
   status: 'todo' | 'in-progress' | 'done';
-  assignee?: string;
+  assignee?: string; // Legacy field - keep for backward compatibility
+  assigned_to?: number[]; // New field - array of team member IDs
   due_date?: string;
   created_at?: string;
 }
@@ -25,6 +26,7 @@ export interface Project {
   description?: string;
   status: 'planning' | 'active' | 'completed';
   progress: number;
+  assigned_to?: number[]; // Array of team member IDs
   deadline?: string;
   created_at?: string;
 }
@@ -51,4 +53,12 @@ export interface OKR {
   status: 'on-track' | 'at-risk' | 'off-track';
   quarter?: string;
   created_at?: string;
+}
+
+export interface Note {
+  id: number;
+  title: string;
+  content: string;
+  created_at?: string;
+  updated_at?: string;
 }

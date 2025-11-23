@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { projectService } from '../services/projectService';
-import { Project } from '../lib/supabase';
+import { teamService } from '../services/teamService';
+import { Project, TeamMember } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,10 +9,14 @@ import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
+import { Slider } from '../components/ui/slider';
+import { Checkbox } from '../components/ui/checkbox';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { useToast } from '../hooks/use-toast';
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,7 @@ export default function Projects() {
     description: '',
     status: 'planning' as Project['status'],
     progress: 0,
+    assigned_to: [] as number[],
     deadline: ''
   });
 
@@ -32,8 +38,12 @@ export default function Projects() {
 
   const loadData = async () => {
     setLoading(true);
-    const data = await projectService.getAllProjects();
-    setProjects(data);
+    const [projectsData, teamData] = await Promise.all([
+      projectService.getAllProjects(),
+      teamService.getAllTeam()
+    ]);
+    setProjects(projectsData);
+    setTeamMembers(teamData || []);
     setLoading(false);
   };
 
@@ -53,6 +63,7 @@ export default function Projects() {
         description: '',
         status: 'planning',
         progress: 0,
+        assigned_to: [],
         deadline: ''
       });
       loadData();
@@ -95,6 +106,20 @@ export default function Projects() {
   const getStatusColor = (status: string) => {
     const colors = { planning: 'default', active: 'default', completed: 'secondary' };
     return colors[status as keyof typeof colors] || 'default';
+  };
+
+  const toggleAssignee = (memberId: number) => {
+    setNewProject(prev => ({
+      ...prev,
+      assigned_to: prev.assigned_to.includes(memberId)
+        ? prev.assigned_to.filter(id => id !== memberId)
+        : [...prev.assigned_to, memberId]
+    }));
+  };
+
+  const getAssignedMembers = (project: Project): TeamMember[] => {
+    if (!project.assigned_to || project.assigned_to.length === 0) return [];
+    return teamMembers.filter(member => project.assigned_to?.includes(member.id));
   };
 
   if (loading) {
@@ -183,6 +208,38 @@ export default function Projects() {
                     rows={3}
                   />
                 </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">Assigner à:</label>
+                  <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                    {teamMembers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Aucun membre d'équipe disponible</p>
+                    ) : (
+                      teamMembers.map(member => (
+                        <div key={member.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`project-member-${member.id}`}
+                            checked={newProject.assigned_to.includes(member.id)}
+                            onCheckedChange={() => toggleAssignee(member.id)}
+                          />
+                          <label
+                            htmlFor={`project-member-${member.id}`}
+                            className="flex items-center gap-2 flex-1 cursor-pointer"
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={member.avatar} />
+                              <AvatarFallback className="text-xs">
+                                {member.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{member.name}</span>
+                            <span className="text-xs text-muted-foreground">({member.role})</span>
+                          </label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -200,6 +257,7 @@ export default function Projects() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.map((project) => {
           const isExpanded = expandedProjectId === project.id;
+          const assignedMembers = getAssignedMembers(project);
 
           return (
             <Card
@@ -221,12 +279,44 @@ export default function Projects() {
                   </p>
                 )}
 
+                {assignedMembers.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Équipe:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {assignedMembers.map(member => (
+                        <Badge key={member.id} variant="outline" className="flex items-center gap-1">
+                          <Avatar className="h-4 w-4">
+                            <AvatarImage src={member.avatar} />
+                            <AvatarFallback className="text-[8px]">
+                              {member.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs">{member.name}</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Progression</span>
                     <span className="font-semibold">{project.progress}%</span>
                   </div>
                   <Progress value={project.progress} />
+
+                  {/* Slider pour modifier la progression quand étendu */}
+                  {isExpanded && (
+                    <div className="pt-2">
+                      <Slider
+                        value={[project.progress]}
+                        max={100}
+                        step={1}
+                        onValueChange={(value) => handleUpdateProject(project.id, { progress: value[0] })}
+                        className="cursor-pointer"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {project.deadline && (
@@ -265,19 +355,18 @@ export default function Projects() {
                         </SelectContent>
                       </Select>
 
-                      <Input
-                        type="number"
-                        placeholder="Progression"
-                        defaultValue={project.progress}
-                        min="0"
-                        max="100"
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (!isNaN(val) && val !== project.progress) {
-                            handleUpdateProject(project.id, { progress: val });
-                          }
-                        }}
-                      />
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Deadline</label>
+                        <Input
+                          type="date"
+                          defaultValue={project.deadline || ''}
+                          onBlur={(e) => {
+                            if (e.target.value !== project.deadline) {
+                              handleUpdateProject(project.id, { deadline: e.target.value || undefined });
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex gap-2">

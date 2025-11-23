@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Settings, Trash2, Home, CheckSquare, FolderKanban, Target, Users, Bell } from "lucide-react";
+import { Search, Settings, Trash2, Home, CheckSquare, FolderKanban, Target, Users, Bell, FileText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -96,6 +96,18 @@ export function AppSidebar() {
                   >
                     <Users className="h-[18px] w-[18px]" />
                     {open && <span>Équipe</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/notes"
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
+                    activeClassName="bg-muted/80 text-foreground font-medium"
+                  >
+                    <FileText className="h-[18px] w-[18px]" />
+                    {open && <span>Notes</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -15,6 +15,7 @@ import Projects from "./pages/Projects";
 import OKRs from "./pages/OKRs";
 import Team from "./pages/Team";
 import Notifications from "./pages/Notifications";
+import Notes from "./pages/Notes";
 import { Menu } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/okrs" element={<OKRs />} />
                   <Route path="/team" element={<Team />} />
+                  <Route path="/notes" element={<Notes />} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/page/:pageId" element={<Page />} />
                   <Route path="/old-index" element={<Index />} />

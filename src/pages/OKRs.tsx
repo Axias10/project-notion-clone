@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
+import { Slider } from '../components/ui/slider';
 import { useToast } from '../hooks/use-toast';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -68,7 +69,13 @@ export default function OKRs() {
       return;
     }
 
-    const success = await okrService.addOKR(newOKR);
+    // Préparer l'OKR en convertissant les strings vides en null
+    const okrToAdd = {
+      ...newOKR,
+      quarter: newOKR.quarter.trim() === '' ? undefined : newOKR.quarter
+    };
+
+    const success = await okrService.addOKR(okrToAdd);
     if (success) {
       toast({ title: "Succès", description: "OKR créé !" });
       setShowForm(false);
@@ -88,6 +95,19 @@ export default function OKRs() {
     const success = await okrService.updateOKR(okrId, updates);
     if (success) {
       toast({ title: "Succès", description: "OKR mis à jour" });
+      loadData();
+    }
+  };
+
+  const handleUpdateKeyResult = async (okr: OKR, krIndex: number, newProgress: number) => {
+    const keyResults = Array.isArray(okr.key_results) ? okr.key_results : [];
+    const updatedKeyResults = keyResults.map((kr, index) =>
+      index === krIndex ? { ...kr, progress: newProgress } : kr
+    );
+
+    const success = await okrService.updateOKR(okr.id, { key_results: updatedKeyResults });
+    if (success) {
+      toast({ title: "Succès", description: "Progression mise à jour" });
       loadData();
     }
   };
@@ -313,6 +333,19 @@ export default function OKRs() {
                           </span>
                         </div>
                         <Progress value={krProgress} />
+
+                        {/* Slider pour modifier la progression quand étendu */}
+                        {isExpanded && (
+                          <div className="pt-2">
+                            <Slider
+                              value={[kr.progress]}
+                              max={kr.target}
+                              step={1}
+                              onValueChange={(value) => handleUpdateKeyResult(okr, index, value[0])}
+                              className="cursor-pointer"
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -321,7 +354,7 @@ export default function OKRs() {
                 {/* Edit Panel */}
                 {isExpanded && (
                   <div className="pt-4 mt-4 border-t space-y-3">
-                    <h4 className="font-semibold text-sm">Modifier l'OKR</h4>
+                    <h4 className="font-semibold text-sm">Modifier le statut</h4>
 
                     <Select
                       value={okr.status}
