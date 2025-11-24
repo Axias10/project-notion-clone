@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm run dev:*)",
       "Bash(find:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(cat:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix 404 error on page refresh - Add Vercel SPA routing config\n\nAdd vercel.json with rewrite rules to handle client-side routing.\nThis fixes the 404 NOT_FOUND error that occurred when refreshing\nany non-root page (e.g., /tasks, /projects, /okrs).\n\nThe rewrites configuration tells Vercel to serve index.html for\nall routes, allowing React Router to handle the routing on the\nclient side.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(README.md)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []
