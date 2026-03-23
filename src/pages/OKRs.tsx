@@ -9,7 +9,7 @@ import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
 import { Slider } from '../components/ui/slider';
 import { useToast } from '../hooks/use-toast';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 
 export default function OKRs() {
   const [okrs, setOKRs] = useState<OKR[]>([]);
@@ -154,18 +154,27 @@ export default function OKRs() {
   };
 
   if (loading) {
-    return <div className="p-8">Chargement...</div>;
+    return (
+      <div className="p-8 space-y-6">
+        <div className="h-9 w-64 bg-muted animate-pulse rounded" />
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
   }
 
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">🎯 OKRs - Objectifs & Résultats Clés</h1>
-          <p className="text-muted-foreground mt-2">Définissez et suivez vos objectifs stratégiques</p>
+          <h1 className="text-3xl font-bold tracking-tight">OKRs</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {okrs.filter(o => o.status === 'on-track').length} on track · {okrs.filter(o => o.status === 'at-risk').length} à risque · {okrs.filter(o => o.status === 'off-track').length} off-track
+          </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? '❌ Annuler' : '➕ Nouvel OKR'}
+          {showForm ? <><X className="h-4 w-4 mr-2" />Annuler</> : <><Plus className="h-4 w-4 mr-2" />Nouvel OKR</>}
         </Button>
       </div>
 

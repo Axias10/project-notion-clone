@@ -177,7 +177,18 @@ export default function Notes() {
   };
 
   if (loading) {
-    return <div className="p-8">Chargement...</div>;
+    return (
+      <div className="flex h-[calc(100vh-4rem)]">
+        <div className="w-64 border-r p-4 space-y-3">
+          <div className="h-7 w-24 bg-muted animate-pulse rounded" />
+          {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-muted animate-pulse rounded" />)}
+        </div>
+        <div className="flex-1 p-8 space-y-4">
+          <div className="h-10 w-64 bg-muted animate-pulse rounded" />
+          <div className="h-96 bg-muted animate-pulse rounded-lg" />
+        </div>
+      </div>
+    );
   }
 
   return (

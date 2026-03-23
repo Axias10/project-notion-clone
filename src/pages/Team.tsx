@@ -109,18 +109,27 @@ export default function Team() {
   };
 
   if (loading) {
-    return <div className="p-8">Chargement...</div>;
+    return (
+      <div className="p-8 space-y-6">
+        <div className="h-9 w-48 bg-muted animate-pulse rounded" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />)}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">👥 Gestion de l'Équipe</h1>
-          <p className="text-muted-foreground mt-2">Gérez les membres de votre équipe</p>
+          <h1 className="text-3xl font-bold tracking-tight">Équipe</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {team.length} membre{team.length !== 1 ? 's' : ''} · {new Set(team.map(m => m.role)).size} rôle{new Set(team.map(m => m.role)).size !== 1 ? 's' : ''}
+          </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? '❌ Annuler' : '➕ Nouveau membre'}
+          {showForm ? '✕ Annuler' : '+ Nouveau membre'}
         </Button>
       </div>
 

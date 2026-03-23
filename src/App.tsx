@@ -2,10 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import Page from "./pages/Page";
 import NotFound from "./pages/NotFound";
@@ -16,9 +16,56 @@ import OKRs from "./pages/OKRs";
 import Team from "./pages/Team";
 import Notifications from "./pages/Notifications";
 import Notes from "./pages/Notes";
-import { Menu } from "lucide-react";
+import Reports from "./pages/Reports";
+import { Menu, Moon, Sun, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { notificationService } from "./services/notificationService";
 
 const queryClient = new QueryClient();
+
+function AppHeader() {
+  const { theme, setTheme } = useTheme();
+  const [notifCount, setNotifCount] = useState(0);
+
+  useEffect(() => {
+    notificationService.getNotifications().then(notifs => {
+      setNotifCount(notifs.filter(n => n.type === 'error' || n.type === 'warning').length);
+    });
+  }, []);
+
+  return (
+    <header className="h-14 border-b border-border/50 flex items-center justify-between px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="hover:bg-muted/80 rounded-md p-2 transition-colors">
+          <Menu className="h-5 w-5" />
+        </SidebarTrigger>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Link to="/notifications" className="relative">
+          <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+            <Bell className="h-4 w-4" />
+            {notifCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {notifCount > 9 ? '9+' : notifCount}
+              </span>
+            )}
+          </Button>
+        </Link>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </div>
+    </header>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -27,35 +74,32 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-        <SidebarProvider>
-          <div className="flex min-h-screen w-full">
-            <AppSidebar />
-            <div className="flex-1 flex flex-col">
-              <header className="h-14 border-b border-border/50 flex items-center px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
-                <SidebarTrigger className="mr-4 hover:bg-muted/80 rounded-md p-2 transition-colors">
-                  <Menu className="h-5 w-5" />
-                </SidebarTrigger>
-              </header>
-              <main className="flex-1 bg-background">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/tasks" element={<Tasks />} />
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/okrs" element={<OKRs />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/notes" element={<Notes />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/page/:pageId" element={<Page />} />
-                  <Route path="/old-index" element={<Index />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
+          <SidebarProvider>
+            <div className="flex min-h-screen w-full">
+              <AppSidebar />
+              <div className="flex-1 flex flex-col min-w-0">
+                <AppHeader />
+                <main className="flex-1 bg-background overflow-auto">
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/tasks" element={<Tasks />} />
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/okrs" element={<OKRs />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/notes" element={<Notes />} />
+                    <Route path="/notifications" element={<Notifications />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/page/:pageId" element={<Page />} />
+                    <Route path="/old-index" element={<Index />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </main>
+              </div>
             </div>
-          </div>
-        </SidebarProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+          </SidebarProvider>
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

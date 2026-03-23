@@ -1,22 +1,55 @@
-import { useState } from "react";
-import { Search, Settings, Trash2, Home, CheckSquare, FolderKanban, Target, Users, Bell, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, Settings, Home, CheckSquare, FolderKanban, Target, Users, Bell, FileText, BarChart2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
+import { notificationService } from "@/services/notificationService";
 
 export function AppSidebar() {
   const { open } = useSidebar();
   const [searchQuery, setSearchQuery] = useState("");
+  const [notifCount, setNotifCount] = useState(0);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    notificationService.getNotifications().then(notifs => {
+      setNotifCount(notifs.filter(n => n.type === 'error' || n.type === 'warning').length);
+    });
+  }, []);
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      if (q.includes('tâche') || q.includes('tache') || q.includes('task')) {
+        navigate('/tasks');
+      } else if (q.includes('projet') || q.includes('project')) {
+        navigate('/projects');
+      } else if (q.includes('okr') || q.includes('objectif')) {
+        navigate('/okrs');
+      } else if (q.includes('équipe') || q.includes('equipe') || q.includes('team') || q.includes('membre')) {
+        navigate('/team');
+      } else if (q.includes('note')) {
+        navigate('/notes');
+      } else if (q.includes('notif') || q.includes('alerte')) {
+        navigate('/notifications');
+      } else if (q.includes('rapport') || q.includes('report') || q.includes('analytics') || q.includes('stats')) {
+        navigate('/reports');
+      } else {
+        navigate('/dashboard');
+      }
+      setSearchQuery('');
+    }
+  };
 
   return (
     <Sidebar className="border-r border-border/50">
@@ -28,9 +61,10 @@ export function AppSidebar() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-[14px] w-[14px] text-muted-foreground" />
             <Input
-              placeholder="Rechercher..."
+              placeholder="Rechercher... (Entrée)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
               className="pl-8 h-8 text-sm bg-muted/40 border-0 focus-visible:ring-0 focus-visible:bg-muted/60 transition-all rounded-md"
             />
           </div>
@@ -51,6 +85,7 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
@@ -63,6 +98,7 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
@@ -75,6 +111,7 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
@@ -87,6 +124,7 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
@@ -99,6 +137,7 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
@@ -111,6 +150,20 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/reports"
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
+                    activeClassName="bg-muted/80 text-foreground font-medium"
+                  >
+                    <BarChart2 className="h-[18px] w-[18px]" />
+                    {open && <span>Rapports</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
@@ -118,8 +171,24 @@ export function AppSidebar() {
                     className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
                     activeClassName="bg-muted/80 text-foreground font-medium"
                   >
-                    <Bell className="h-[18px] w-[18px]" />
-                    {open && <span>Notifications</span>}
+                    <div className="relative flex-shrink-0">
+                      <Bell className="h-[18px] w-[18px]" />
+                      {notifCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                          {notifCount > 9 ? '9+' : notifCount}
+                        </span>
+                      )}
+                    </div>
+                    {open && (
+                      <span className="flex items-center gap-2">
+                        Notifications
+                        {notifCount > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                            {notifCount}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -134,14 +203,6 @@ export function AppSidebar() {
                 <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors w-full text-muted-foreground hover:text-foreground">
                   <Settings className="h-[18px] w-[18px]" />
                   {open && <span>Paramètres</span>}
-                </button>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors w-full text-muted-foreground hover:text-foreground">
-                  <Trash2 className="h-[18px] w-[18px]" />
-                  {open && <span>Corbeille</span>}
                 </button>
               </SidebarMenuButton>
             </SidebarMenuItem>

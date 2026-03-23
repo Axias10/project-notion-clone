@@ -62,15 +62,23 @@ export default function Notifications() {
   const infos = notifications.filter(n => n.type === 'info');
 
   if (loading) {
-    return <div className="p-8">Chargement...</div>;
+    return (
+      <div className="p-8 space-y-6">
+        <div className="h-9 w-64 bg-muted animate-pulse rounded" />
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />)}
+        </div>
+        {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />)}
+      </div>
+    );
   }
 
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">🔔 Centre de notifications</h1>
-        <p className="text-muted-foreground mt-2">
-          Restez informé des tâches urgentes, deadlines et alertes importantes
+        <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          {notifications.length} alerte{notifications.length !== 1 ? 's' : ''} · {errors.length} urgent{errors.length !== 1 ? 'es' : 'e'} · {warnings.length} attention
         </p>
       </div>
 
