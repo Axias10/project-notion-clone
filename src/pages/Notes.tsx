@@ -196,7 +196,7 @@ export default function Notes() {
       {/* Sidebar - Liste des notes */}
       <div className="w-64 border-r bg-muted/30 p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-lg">📝 Notes</h2>
+          <h2 className="font-bold text-lg">Notes</h2>
           <Button size="sm" onClick={handleCreateNote}>
             <Plus className="h-4 w-4" />
           </Button>

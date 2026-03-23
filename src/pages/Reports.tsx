@@ -273,10 +273,10 @@ export default function Reports() {
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Legend formatter={(v) => v === 'en-cours' ? 'En cours' : v === 'done' ? 'Terminé' : 'À faire'} />
-                  <Bar dataKey="todo" name="À faire" stackId="a" fill={COLORS.todo} radius={[0, 0, 0, 0]} />
+                  <Legend />
+                  <Bar dataKey="todo" name="À faire" stackId="a" fill={COLORS.todo} />
                   <Bar dataKey="en-cours" name="En cours" stackId="a" fill={COLORS['in-progress']} />
-                  <Bar dataKey="done" name="Terminé" stackId="a" fill={COLORS.done} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="done" name="Terminé" stackId="a" fill={COLORS.done} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

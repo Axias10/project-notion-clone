@@ -20,9 +20,9 @@ const PRIORITY_CONFIG = {
 };
 
 const COLUMN_CONFIG = {
-  todo: { label: 'À faire', color: 'bg-slate-100 dark:bg-slate-800', headerColor: 'text-slate-600 dark:text-slate-300' },
-  'in-progress': { label: 'En cours', color: 'bg-blue-50 dark:bg-blue-950/30', headerColor: 'text-blue-600 dark:text-blue-400' },
-  done: { label: 'Terminé', color: 'bg-green-50 dark:bg-green-950/30', headerColor: 'text-green-600 dark:text-green-400' },
+  todo: { label: 'À faire', color: 'bg-slate-100 dark:bg-slate-800/60', headerColor: 'text-slate-700 dark:text-slate-200', countColor: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200' },
+  'in-progress': { label: 'En cours', color: 'bg-blue-100 dark:bg-blue-900/40', headerColor: 'text-blue-700 dark:text-blue-300', countColor: 'bg-blue-200 dark:bg-blue-800/60 text-blue-700 dark:text-blue-300' },
+  done: { label: 'Terminé', color: 'bg-green-100 dark:bg-green-900/40', headerColor: 'text-green-700 dark:text-green-300', countColor: 'bg-green-200 dark:bg-green-800/60 text-green-700 dark:text-green-300' },
 };
 
 export default function Tasks() {
@@ -297,11 +297,11 @@ export default function Tasks() {
           return (
             <div key={status} className="flex flex-col gap-3">
               {/* Column Header */}
-              <div className={`flex items-center justify-between px-3 py-2 rounded-lg ${config.color}`}>
+              <div className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${config.color}`}>
                 <h3 className={`font-semibold text-sm ${config.headerColor}`}>
                   {config.label}
                 </h3>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-white/60 dark:bg-black/20 ${config.headerColor}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.countColor}`}>
                   {statusTasks.length}
                 </span>
               </div>
