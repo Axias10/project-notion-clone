@@ -82,10 +82,16 @@ export default function Notes() {
 
   const loadNotes = async () => {
     setLoading(true);
-    const data = await noteService.getAllNotes();
-    setNotes(data);
-    if (data.length > 0 && !selectedNote) {
-      setSelectedNote(data[0]);
+    try {
+      const data = await noteService.getAllNotes();
+      const safeData = data || [];
+      setNotes(safeData);
+      if (safeData.length > 0 && !selectedNote) {
+        setSelectedNote(safeData[0]);
+      }
+    } catch (err) {
+      console.error('Notes load error:', err);
+      setNotes([]);
     }
     setLoading(false);
   };
@@ -149,11 +155,12 @@ export default function Notes() {
 
       // Recharger les notes et sélectionner la nouvelle
       const data = await noteService.getAllNotes();
-      setNotes(data);
+      const safeData = data || [];
+      setNotes(safeData);
 
       // Sélectionner la note la plus récente (celle qu'on vient de créer)
-      if (data.length > 0) {
-        const newestNote = data[0]; // Les notes sont triées par updated_at DESC
+      if (safeData.length > 0) {
+        const newestNote = safeData[0]; // Les notes sont triées par updated_at DESC
         setSelectedNote(newestNote);
         setEditingTitle(newestNote.title);
         if (editor) {
