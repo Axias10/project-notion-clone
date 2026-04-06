@@ -5,7 +5,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { noteService } from '../services/noteService';
-import { Note } from '../lib/supabase';
+import { supabase, Note } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -18,6 +18,7 @@ export default function Notes() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,10 +83,28 @@ export default function Notes() {
 
   const loadNotes = async () => {
     setLoading(true);
-    const data = await noteService.getAllNotes();
-    setNotes(data);
-    if (data.length > 0 && !selectedNote) {
-      setSelectedNote(data[0]);
+    setLoadError(null);
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        setLoadError(`Erreur Supabase: ${error.message}`);
+        setNotes([]);
+      } else {
+        const safeData = data || [];
+        setNotes(safeData);
+        if (safeData.length > 0 && !selectedNote) {
+          setSelectedNote(safeData[0]);
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      console.error('Notes load error:', err);
+      setLoadError(`Erreur réseau: ${msg}`);
+      setNotes([]);
     }
     setLoading(false);
   };
@@ -149,11 +168,12 @@ export default function Notes() {
 
       // Recharger les notes et sélectionner la nouvelle
       const data = await noteService.getAllNotes();
-      setNotes(data);
+      const safeData = data || [];
+      setNotes(safeData);
 
       // Sélectionner la note la plus récente (celle qu'on vient de créer)
-      if (data.length > 0) {
-        const newestNote = data[0]; // Les notes sont triées par updated_at DESC
+      if (safeData.length > 0) {
+        const newestNote = safeData[0]; // Les notes sont triées par updated_at DESC
         setSelectedNote(newestNote);
         setEditingTitle(newestNote.title);
         if (editor) {
@@ -177,7 +197,18 @@ export default function Notes() {
   };
 
   if (loading) {
-    return <div className="p-8">Chargement...</div>;
+    return (
+      <div className="flex h-[calc(100vh-4rem)]">
+        <div className="w-64 border-r p-4 space-y-3">
+          <div className="h-7 w-24 bg-muted animate-pulse rounded" />
+          {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-muted animate-pulse rounded" />)}
+        </div>
+        <div className="flex-1 p-8 space-y-4">
+          <div className="h-10 w-64 bg-muted animate-pulse rounded" />
+          <div className="h-96 bg-muted animate-pulse rounded-lg" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -185,7 +216,7 @@ export default function Notes() {
       {/* Sidebar - Liste des notes */}
       <div className="w-64 border-r bg-muted/30 p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-lg">📝 Notes</h2>
+          <h2 className="font-bold text-lg">Notes</h2>
           <Button size="sm" onClick={handleCreateNote}>
             <Plus className="h-4 w-4" />
           </Button>
@@ -225,7 +256,13 @@ export default function Notes() {
           ))}
         </div>
 
-        {notes.length === 0 && (
+        {loadError && (
+          <div className="mt-4 p-3 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs break-all">
+            {loadError}
+          </div>
+        )}
+
+        {!loadError && notes.length === 0 && (
           <div className="text-center text-muted-foreground text-sm mt-8">
             Aucune note. Créez-en une !
           </div>

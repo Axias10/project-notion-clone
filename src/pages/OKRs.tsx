@@ -9,7 +9,7 @@ import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
 import { Slider } from '../components/ui/slider';
 import { useToast } from '../hooks/use-toast';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 
 export default function OKRs() {
   const [okrs, setOKRs] = useState<OKR[]>([]);
@@ -125,20 +125,29 @@ export default function OKRs() {
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      'on-track': '🟢 On Track',
-      'at-risk': '🟡 At Risk',
-      'off-track': '🔴 Off Track'
+      'on-track': 'On Track',
+      'at-risk': 'At Risk',
+      'off-track': 'Off Track'
     };
     return labels[status as keyof typeof labels] || status;
   };
 
-  const getStatusColor = (status: string) => {
-    const colors = {
-      'on-track': 'default',
-      'at-risk': 'default',
-      'off-track': 'destructive'
+  const getStatusBadgeClass = (status: string) => {
+    const classes = {
+      'on-track': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800',
+      'at-risk': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+      'off-track': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800',
     };
-    return colors[status as keyof typeof colors] || 'default';
+    return classes[status as keyof typeof classes] || '';
+  };
+
+  const getProgressBarClass = (status: string) => {
+    const classes = {
+      'on-track': '[&>div]:bg-green-500',
+      'at-risk': '[&>div]:bg-yellow-500',
+      'off-track': '[&>div]:bg-red-500',
+    };
+    return classes[status as keyof typeof classes] || '';
   };
 
   const calculateOverallProgress = (keyResults: KeyResult[] | string): number => {
@@ -154,18 +163,27 @@ export default function OKRs() {
   };
 
   if (loading) {
-    return <div className="p-8">Chargement...</div>;
+    return (
+      <div className="p-8 space-y-6">
+        <div className="h-9 w-64 bg-muted animate-pulse rounded" />
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+        ))}
+      </div>
+    );
   }
 
   return (
     <div className="p-8 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">🎯 OKRs - Objectifs & Résultats Clés</h1>
-          <p className="text-muted-foreground mt-2">Définissez et suivez vos objectifs stratégiques</p>
+          <h1 className="text-3xl font-bold tracking-tight">OKRs</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {okrs.filter(o => o.status === 'on-track').length} on track · {okrs.filter(o => o.status === 'at-risk').length} à risque · {okrs.filter(o => o.status === 'off-track').length} off-track
+          </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? '❌ Annuler' : '➕ Nouvel OKR'}
+          {showForm ? <><X className="h-4 w-4 mr-2" />Annuler</> : <><Plus className="h-4 w-4 mr-2" />Nouvel OKR</>}
         </Button>
       </div>
 
@@ -301,12 +319,12 @@ export default function OKRs() {
                   <div className="flex-1">
                     <CardTitle className="text-xl mb-2">{okr.objective}</CardTitle>
                     <div className="flex items-center gap-3">
-                      <Badge variant={getStatusColor(okr.status) as any}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${getStatusBadgeClass(okr.status)}`}>
                         {getStatusLabel(okr.status)}
-                      </Badge>
+                      </span>
                       {okr.quarter && (
                         <span className="text-sm text-muted-foreground">
-                          📅 {okr.quarter}
+                          {okr.quarter}
                         </span>
                       )}
                     </div>
@@ -332,7 +350,7 @@ export default function OKRs() {
                             {kr.progress}/{kr.target}
                           </span>
                         </div>
-                        <Progress value={krProgress} />
+                        <Progress value={Math.min(krProgress, 100)} className={`h-1.5 ${getProgressBarClass(okr.status)}`} />
 
                         {/* Slider pour modifier la progression quand étendu */}
                         {isExpanded && (
