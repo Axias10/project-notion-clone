@@ -5,7 +5,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { noteService } from '../services/noteService';
-import { Note } from '../lib/supabase';
+import { supabase, Note } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -18,6 +18,7 @@ export default function Notes() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,15 +83,27 @@ export default function Notes() {
 
   const loadNotes = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const data = await noteService.getAllNotes();
-      const safeData = data || [];
-      setNotes(safeData);
-      if (safeData.length > 0 && !selectedNote) {
-        setSelectedNote(safeData[0]);
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        setLoadError(`Erreur Supabase: ${error.message}`);
+        setNotes([]);
+      } else {
+        const safeData = data || [];
+        setNotes(safeData);
+        if (safeData.length > 0 && !selectedNote) {
+          setSelectedNote(safeData[0]);
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
+      const msg = err?.message || String(err);
       console.error('Notes load error:', err);
+      setLoadError(`Erreur réseau: ${msg}`);
       setNotes([]);
     }
     setLoading(false);
@@ -243,7 +256,13 @@ export default function Notes() {
           ))}
         </div>
 
-        {notes.length === 0 && (
+        {loadError && (
+          <div className="mt-4 p-3 rounded-md bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs break-all">
+            {loadError}
+          </div>
+        )}
+
+        {!loadError && notes.length === 0 && (
           <div className="text-center text-muted-foreground text-sm mt-8">
             Aucune note. Créez-en une !
           </div>
