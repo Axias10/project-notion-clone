@@ -36,19 +36,22 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    const [tasksData, projectsData, okrsData, teamData, notifData] = await Promise.all([
-      taskService.getAllTasks(),
-      projectService.getAllProjects(),
-      okrService.getAllOKRs(),
-      teamService.getAllTeam(),
-      notificationService.getNotifications(),
-    ]);
-
-    setTasks(tasksData);
-    setProjects(projectsData);
-    setOKRs(okrsData);
-    setTeam(teamData || []);
-    setNotifications(notifData);
+    try {
+      const [tasksData, projectsData, okrsData, teamData, notifData] = await Promise.all([
+        taskService.getAllTasks(),
+        projectService.getAllProjects(),
+        okrService.getAllOKRs(),
+        teamService.getAllTeam(),
+        notificationService.getNotifications(),
+      ]);
+      setTasks(tasksData || []);
+      setProjects(projectsData || []);
+      setOKRs(okrsData || []);
+      setTeam(teamData || []);
+      setNotifications(notifData || []);
+    } catch (err) {
+      console.error('Dashboard load error:', err);
+    }
     setLoading(false);
   };
 

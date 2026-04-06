@@ -19,20 +19,11 @@ import Notes from "./pages/Notes";
 import Reports from "./pages/Reports";
 import { Menu, Moon, Sun, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
-import { notificationService } from "./services/notificationService";
 
 const queryClient = new QueryClient();
 
 function AppHeader() {
   const { theme, setTheme } = useTheme();
-  const [notifCount, setNotifCount] = useState(0);
-
-  useEffect(() => {
-    notificationService.getNotifications().then(notifs => {
-      setNotifCount(notifs.filter(n => n.type === 'error' || n.type === 'warning').length);
-    });
-  }, []);
 
   return (
     <header className="h-14 border-b border-border/50 flex items-center justify-between px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-10">
@@ -43,14 +34,9 @@ function AppHeader() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Link to="/notifications" className="relative">
-          <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+        <Link to="/notifications">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <Bell className="h-4 w-4" />
-            {notifCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {notifCount > 9 ? '9+' : notifCount}
-              </span>
-            )}
           </Button>
         </Link>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Settings, Home, CheckSquare, FolderKanban, Target, Users, Bell, FileText, BarChart2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -13,19 +13,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
-import { notificationService } from "@/services/notificationService";
 
 export function AppSidebar() {
   const { open } = useSidebar();
   const [searchQuery, setSearchQuery] = useState("");
-  const [notifCount, setNotifCount] = useState(0);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    notificationService.getNotifications().then(notifs => {
-      setNotifCount(notifs.filter(n => n.type === 'error' || n.type === 'warning').length);
-    });
-  }, []);
 
   const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
@@ -171,24 +163,8 @@ export function AppSidebar() {
                     className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
                     activeClassName="bg-muted/80 text-foreground font-medium"
                   >
-                    <div className="relative flex-shrink-0">
-                      <Bell className="h-[18px] w-[18px]" />
-                      {notifCount > 0 && (
-                        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
-                          {notifCount > 9 ? '9+' : notifCount}
-                        </span>
-                      )}
-                    </div>
-                    {open && (
-                      <span className="flex items-center gap-2">
-                        Notifications
-                        {notifCount > 0 && (
-                          <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                            {notifCount}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                    <Bell className="h-[18px] w-[18px]" />
+                    {open && <span>Notifications</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
