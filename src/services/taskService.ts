@@ -99,13 +99,15 @@ export const taskService = {
   // Mettre à jour le statut d'une tâche
   async updateTaskStatus(taskId: number, status: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tasks')
         .update({ status })
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === taskId;
     } catch (error) {
       console.error('Error updating task status:', error);
       return false;
@@ -115,13 +117,15 @@ export const taskService = {
   // Mettre à jour une tâche
   async updateTask(taskId: number, taskData: Partial<Task>): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tasks')
         .update(taskData)
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === taskId;
     } catch (error) {
       console.error('Error updating task:', error);
       return false;
@@ -131,13 +135,15 @@ export const taskService = {
   // Supprimer une tâche
   async deleteTask(taskId: number): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tasks')
         .delete()
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === taskId;
     } catch (error) {
       console.error('Error deleting task:', error);
       return false;

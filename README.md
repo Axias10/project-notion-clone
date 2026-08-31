@@ -1,73 +1,103 @@
-# Welcome to your Lovable project
+# Pantheon Capital Management
 
-## Project info
+Application de gestion de projets, tâches, notes et OKR construite avec React, TypeScript, Vite, Tailwind CSS et Supabase.
 
-**URL**: https://lovable.dev/projects/ba45e6b9-5715-42e2-bfdd-b24207919bb0
+## Développement local
 
-## How can I edit this code?
+Prérequis : Node.js 18 ou supérieur et un projet Supabase.
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/ba45e6b9-5715-42e2-bfdd-b24207919bb0) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```powershell
+npm install
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Renseignez ces deux variables dans `.env.local` :
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```env
+VITE_SUPABASE_URL=https://votre-projet.supabase.co
+VITE_SUPABASE_ANON_KEY=votre-cle-anon-ou-publishable
+```
 
-**Use GitHub Codespaces**
+La clé `anon`/`publishable` est conçue pour être utilisée dans le navigateur avec RLS. Ne placez jamais une clé `service_role` dans une variable `VITE_*`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Activer l’authentification Supabase
 
-## What technologies are used for this project?
+Le plan gratuit Supabase suffit pour cette version. Le modèle actuel crée un espace privé par compte : un utilisateur ne peut lire ou modifier que ses propres lignes.
 
-This project is built with:
+### 1. Créer le premier compte
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Dans Supabase :
 
-## How can I deploy this project?
+1. Ouvrez **Authentication > Providers > Email** et laissez le fournisseur Email activé.
+2. Ouvrez **Authentication > Users > Add user**.
+3. Créez le premier compte et copiez son UUID.
 
-Simply open [Lovable](https://lovable.dev/projects/ba45e6b9-5715-42e2-bfdd-b24207919bb0) and click on Share -> Publish.
+L’inscription reste ouverte dans l’application pour les comptes suivants. En production, gardez la confirmation d’email activée.
 
-## Can I connect a custom domain to my Lovable project?
+### 2. Sécuriser les tables
 
-Yes, you can!
+Dans **SQL Editor**, exécutez le fichier [`supabase-auth-migration.sql`](./supabase-auth-migration.sql). Il :
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- ajoute `owner_id` à `team`, `tasks`, `projects`, `okrs` et `notes` ;
+- retire les anciennes politiques publiques ;
+- active des politiques RLS privées pour les utilisateurs authentifiés ;
+- ajoute les index nécessaires.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Les anciennes données deviennent temporairement invisibles, mais ne sont pas supprimées.
+
+### 3. Rattacher les données existantes
+
+Exécutez [`supabase-claim-existing-data.sql`](./supabase-claim-existing-data.sql) dans **SQL Editor**. S’il n’existe qu’un utilisateur, le script le détecte automatiquement. S’il en existe plusieurs, renseignez son UUID dans :
+
+```sql
+target_user_id UUID := 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+```
+
+Le script rattache seulement les lignes sans propriétaire et rend `owner_id` obligatoire.
+
+### 4. Configurer les redirections
+
+Dans **Authentication > URL Configuration** :
+
+- **Site URL** : l’URL Vercel de production ;
+- **Redirect URLs** : `http://localhost:5173/auth`, `http://localhost:5173/auth/reset`, puis les deux URLs équivalentes sur Vercel.
+
+Ces URLs sont utilisées pour la confirmation d’email et la réinitialisation du mot de passe.
+
+## Déploiement Vercel
+
+Ajoutez dans **Vercel > Project Settings > Environment Variables** :
+
+| Variable | Environnements |
+|---|---|
+| `VITE_SUPABASE_URL` | Production, Preview, Development |
+| `VITE_SUPABASE_ANON_KEY` | Production, Preview, Development |
+
+Puis déployez :
+
+```powershell
+vercel --prod
+```
+
+Le fichier `vercel.json` redirige les routes React vers `index.html`, y compris `/auth` et `/auth/reset`.
+
+## Scripts
+
+```powershell
+npm run dev
+npm run build
+npm run lint
+npm run preview
+```
+
+## Structure utile
+
+```text
+src/
+├── components/        contrôles partagés et composants shadcn/ui
+├── contexts/          module d’authentification
+├── lib/               client Supabase et types
+├── pages/             écrans de l’application
+└── services/          accès aux tables Supabase
+```

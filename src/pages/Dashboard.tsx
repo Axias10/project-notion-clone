@@ -1,26 +1,54 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { taskService } from '../services/taskService';
-import { projectService } from '../services/projectService';
-import { okrService } from '../services/okrService';
-import { teamService } from '../services/teamService';
-import { notificationService, Notification } from '../services/notificationService';
-import { Task, Project, OKR, TeamMember } from '../lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Progress } from '../components/ui/progress';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid
-} from 'recharts';
+  ArrowRight,
+  Briefcase,
+  CalendarBlank,
+  ChartLineUp,
+  CheckCircle,
+  Clock,
+  Flag,
+  Pulse,
+  Target,
+  UsersThree,
+  Warning,
+} from "@phosphor-icons/react";
 import {
-  CheckSquare, FolderKanban, Target, Users,
-  AlertTriangle, TrendingUp, Clock, ArrowRight
-} from 'lucide-react';
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { taskService } from "@/services/taskService";
+import { projectService } from "@/services/projectService";
+import { okrService } from "@/services/okrService";
+import { teamService } from "@/services/teamService";
+import {
+  notificationService,
+  Notification,
+} from "@/services/notificationService";
+import { OKR, Project, Task, TeamMember } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
 
-const PRIORITY_COLORS = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
-const STATUS_COLORS = { todo: '#94a3b8', 'in-progress': '#3b82f6', done: '#22c55e' };
+const TASK_STATUS_COLORS = {
+  todo: "#a1a1aa",
+  "in-progress": "#7390a6",
+  done: "#75845a",
+};
+
+const formatDate = (date?: string | null) => {
+  if (!date) return "Sans échéance";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${date}T12:00:00`));
+};
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -31,470 +59,502 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const [tasksData, projectsData, okrsData, teamData, notifData] = await Promise.all([
+    const [tasksData, projectsData, okrsData, teamData, notificationData] =
+      await Promise.all([
         taskService.getAllTasks(),
         projectService.getAllProjects(),
         okrService.getAllOKRs(),
         teamService.getAllTeam(),
         notificationService.getNotifications(),
       ]);
-      setTasks(tasksData || []);
-      setProjects(projectsData || []);
-      setOKRs(okrsData || []);
-      setTeam(teamData || []);
-      setNotifications(notifData || []);
-    } catch (err) {
-      console.error('Dashboard load error:', err);
-    }
+    setTasks(tasksData || []);
+    setProjects(projectsData || []);
+    setOKRs(okrsData || []);
+    setTeam(teamData || []);
+    setNotifications(notificationData || []);
     setLoading(false);
-  };
-
-  const completedTasks = tasks.filter(t => t.status === 'done').length;
-  const totalTasks = tasks.length;
-  const activeProjects = projects.filter(p => p.status === 'active').length;
-  const onTrackOKRs = okrs.filter(o => o.status === 'on-track').length;
-  const performance = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-  const inProgressTasks = tasks.filter(t => t.status === 'in-progress');
-  const activeProjectsList = projects.filter(p => p.status === 'active');
-  const highPriorityCount = tasks.filter(t => t.priority === 'high' && t.status !== 'done').length;
-
-  // Data for charts
-  const taskStatusData = [
-    { name: 'À faire', value: tasks.filter(t => t.status === 'todo').length, color: STATUS_COLORS['todo'] },
-    { name: 'En cours', value: tasks.filter(t => t.status === 'in-progress').length, color: STATUS_COLORS['in-progress'] },
-    { name: 'Terminé', value: tasks.filter(t => t.status === 'done').length, color: STATUS_COLORS['done'] },
-  ].filter(d => d.value > 0);
-
-  const taskPriorityData = [
-    { name: 'Haute', value: tasks.filter(t => t.priority === 'high').length, color: PRIORITY_COLORS.high },
-    { name: 'Moyenne', value: tasks.filter(t => t.priority === 'medium').length, color: PRIORITY_COLORS.medium },
-    { name: 'Basse', value: tasks.filter(t => t.priority === 'low').length, color: PRIORITY_COLORS.low },
-  ].filter(d => d.value > 0);
-
-  const projectProgressData = projects
-    .filter(p => p.status !== 'completed')
-    .slice(0, 6)
-    .map(p => ({ name: p.name.length > 15 ? p.name.slice(0, 15) + '…' : p.name, progress: p.progress }));
-
-  const getPriorityColor = (priority: string) => {
-    const colors = { high: 'destructive', medium: 'default', low: 'secondary' };
-    return colors[priority as keyof typeof colors] || 'default';
-  };
-
-  const formatDate = (date: string) => {
-    try {
-      return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    } catch {
-      return date;
-    }
   };
 
   if (loading) {
     return (
-      <div className="max-w-[1600px] mx-auto p-8 space-y-8">
-        <div className="h-10 w-48 bg-muted animate-pulse rounded" />
-        <div className="grid grid-cols-4 gap-5">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-28 bg-muted animate-pulse rounded-lg" />
-          ))}
+      <div className="mx-auto max-w-[1480px] space-y-7 p-5 sm:p-8">
+        <div className="h-12 w-72 animate-pulse rounded-xl bg-muted" />
+        <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="h-72 animate-pulse rounded-2xl bg-muted" />
+          <div className="h-72 animate-pulse rounded-2xl bg-muted" />
         </div>
-        <div className="grid grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-64 bg-muted animate-pulse rounded-lg" />
-          ))}
+        <div className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
+          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
         </div>
       </div>
     );
   }
 
+  const completedTasks = tasks.filter((task) => task.status === "done").length;
+  const taskCompletion = tasks.length
+    ? Math.round((completedTasks / tasks.length) * 100)
+    : 0;
+  const activeProjects = projects.filter(
+    (project) => project.status === "active",
+  );
+  const averageProjectProgress = projects.length
+    ? Math.round(
+        projects.reduce((total, project) => total + project.progress, 0) /
+          projects.length,
+      )
+    : 0;
+  const onTrackOKRs = okrs.filter((okr) => okr.status === "on-track").length;
+  const okrHealth = okrs.length
+    ? Math.round((onTrackOKRs / okrs.length) * 100)
+    : 0;
+  const portfolioHealth = Math.round(
+    (taskCompletion + averageProjectProgress + okrHealth) / 3,
+  );
+  const inProgressTasks = tasks.filter(
+    (task) => task.status === "in-progress",
+  );
+  const priorityTasks = tasks.filter(
+    (task) => task.priority === "high" && task.status !== "done",
+  );
+  const criticalNotifications = notifications.filter(
+    (notification) => notification.type === "error",
+  );
+
+  const projectProgressData = projects
+    .filter((project) => project.status !== "completed")
+    .slice(0, 7)
+    .map((project) => ({
+      name:
+        project.name.length > 18
+          ? `${project.name.slice(0, 18)}…`
+          : project.name,
+      progress: project.progress,
+    }));
+
+  const taskStatusData = [
+    {
+      name: "À faire",
+      value: tasks.filter((task) => task.status === "todo").length,
+      color: TASK_STATUS_COLORS.todo,
+    },
+    {
+      name: "En cours",
+      value: inProgressTasks.length,
+      color: TASK_STATUS_COLORS["in-progress"],
+    },
+    {
+      name: "Terminées",
+      value: completedTasks,
+      color: TASK_STATUS_COLORS.done,
+    },
+  ].filter((item) => item.value > 0);
+
+  const metrics = [
+    {
+      label: "Exécution des tâches",
+      value: `${taskCompletion}%`,
+      detail: `${completedTasks} sur ${tasks.length}`,
+      icon: CheckCircle,
+    },
+    {
+      label: "Projets actifs",
+      value: activeProjects.length,
+      detail: `${projects.length} au total`,
+      icon: Briefcase,
+    },
+    {
+      label: "OKR dans les temps",
+      value: onTrackOKRs,
+      detail: `${okrs.length} suivis`,
+      icon: Target,
+    },
+    {
+      label: "Membres",
+      value: team.length,
+      detail: `${new Set(team.map((member) => member.role)).size} rôles`,
+      icon: UsersThree,
+    },
+  ];
+
   return (
-    <div className="max-w-[1600px] mx-auto p-8 space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight mb-1">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Vue d'ensemble — {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
-      </div>
+    <div className="mx-auto max-w-[1480px] space-y-7 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Executive overview
+          </p>
+          <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+            Vue d’ensemble
+          </h1>
+          <p className="mt-2 text-sm capitalize text-muted-foreground">
+            {new Intl.DateTimeFormat("fr-FR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(new Date())}
+          </p>
+        </div>
+        <Button asChild variant="outline" className="self-start rounded-xl lg:self-auto">
+          <Link to="/reports">
+            Ouvrir le rapport complet
+            <ArrowRight className="ml-2 h-4 w-4" weight="bold" />
+          </Link>
+        </Button>
+      </header>
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[13px] font-medium text-muted-foreground mb-2">Tâches complétées</p>
-                <div className="text-[32px] font-semibold tracking-tight leading-none">
-                  {completedTasks}<span className="text-lg text-muted-foreground font-normal">/{totalTasks}</span>
-                </div>
-                <Progress value={performance} className="mt-3 h-1.5" />
-              </div>
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <CheckSquare className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[13px] font-medium text-muted-foreground mb-2">Projets actifs</p>
-                <div className="text-[32px] font-semibold tracking-tight leading-none">
-                  {activeProjects}<span className="text-lg text-muted-foreground font-normal">/{projects.length}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {projects.filter(p => p.status === 'completed').length} terminé{projects.filter(p => p.status === 'completed').length > 1 ? 's' : ''}
-                </p>
-              </div>
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <FolderKanban className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[13px] font-medium text-muted-foreground mb-2">OKRs on track</p>
-                <div className="text-[32px] font-semibold tracking-tight leading-none">
-                  {onTrackOKRs}<span className="text-lg text-muted-foreground font-normal">/{okrs.length}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {okrs.filter(o => o.status === 'at-risk').length} à risque
-                </p>
-              </div>
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[13px] font-medium text-muted-foreground mb-2">Équipe</p>
-                <div className="text-[32px] font-semibold tracking-tight leading-none">{team.length}</div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {new Set(team.map(m => m.role)).size} rôle{new Set(team.map(m => m.role)).size > 1 ? 's' : ''}
-                </p>
-              </div>
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Alertes critiques */}
-      {notifications.filter(n => n.type === 'error').length > 0 && (
-        <Card className="border-l-4 border-l-red-500 border-border/50 shadow-none bg-red-50/50 dark:bg-red-950/20">
-          <CardContent className="py-4 px-5">
+      <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="relative overflow-hidden rounded-2xl bg-[#20231e] p-6 text-[#f2f4ed] sm:p-8">
+          <div className="absolute inset-0 opacity-30 [background-image:radial-gradient(circle_at_88%_18%,rgba(210,224,164,0.32),transparent_30%)]" />
+          <div className="relative">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold text-sm text-red-700 dark:text-red-400">
-                    {notifications.filter(n => n.type === 'error').length} alerte{notifications.filter(n => n.type === 'error').length > 1 ? 's' : ''} critique{notifications.filter(n => n.type === 'error').length > 1 ? 's' : ''}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {notifications.filter(n => n.type === 'error')[0]?.message}
-                  </p>
-                </div>
+              <div className="flex items-center gap-2 text-xs font-medium text-[#b8bfb0]">
+                <Pulse className="h-4 w-4 text-[#d4dfaa]" weight="fill" />
+                Santé du portefeuille
               </div>
-              <Link to="/notifications">
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                  Voir tout <ArrowRight className="ml-1 h-3 w-3" />
-                </Button>
-              </Link>
+              <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.13em] text-[#c5cbbf]">
+                Temps réel
+              </span>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="mt-10 flex items-end gap-4">
+              <span className="font-mono text-7xl font-semibold tracking-[-0.09em] sm:text-8xl">
+                {portfolioHealth}
+              </span>
+              <span className="mb-3 text-2xl text-[#aeb5a4]">/100</span>
+            </div>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-[#bdc3b7]">
+              Indice calculé à partir de la complétion des tâches, de la
+              progression moyenne des projets et des OKR dans les temps.
+            </p>
+
+            <div className="mt-10 grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
+              {[
+                { label: "Tâches", value: taskCompletion },
+                { label: "Projets", value: averageProjectProgress },
+                { label: "OKR", value: okrHealth },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#aeb5a4]">{label}</span>
+                    <span className="font-mono">{value}%</span>
+                  </div>
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full origin-left rounded-full bg-[#d4dfaa]"
+                      style={{ transform: `scaleX(${value / 100})` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <dl className="grid overflow-hidden rounded-2xl border border-border/70 sm:grid-cols-2">
+          {metrics.map(({ label, value, detail, icon: Icon }, index) => (
+            <div
+              key={label}
+              className={`p-5 sm:p-6 ${
+                index % 2 === 1 ? "sm:border-l" : ""
+              } ${index > 1 ? "border-t" : index === 1 ? "border-t sm:border-t-0" : ""} border-border/70`}
+            >
+              <Icon className="h-5 w-5 text-muted-foreground" weight="duotone" />
+              <dd className="mt-7 font-mono text-3xl font-semibold tracking-[-0.04em] tabular-nums">
+                {value}
+              </dd>
+              <dt className="mt-2 text-sm font-medium">{label}</dt>
+              <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {criticalNotifications.length > 0 && (
+        <section className="flex flex-col justify-between gap-4 rounded-2xl border border-red-200 bg-red-50/70 p-4 sm:flex-row sm:items-center dark:border-red-900/60 dark:bg-red-950/25">
+          <div className="flex items-start gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300">
+              <Warning className="h-4 w-4" weight="fill" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-red-800 dark:text-red-200">
+                {criticalNotifications.length} alerte
+                {criticalNotifications.length > 1 ? "s" : ""} à traiter
+              </p>
+              <p className="mt-1 text-xs text-red-700/75 dark:text-red-300/75">
+                {criticalNotifications[0]?.message}
+              </p>
+            </div>
+          </div>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="self-start text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-300 dark:hover:bg-red-900/40 sm:self-auto"
+          >
+            <Link to="/notifications">
+              Voir les alertes
+              <ArrowRight className="ml-2 h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        </section>
       )}
 
-      {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Répartition statuts */}
-        <Card className="border border-border/50 shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-semibold">Statuts des tâches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {taskStatusData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={180}>
+      <section className="grid gap-5 xl:grid-cols-[1.3fr_0.7fr]">
+        <div className="rounded-2xl border border-border/70 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Portefeuille
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">
+                Progression des projets ouverts
+              </h2>
+            </div>
+            <ChartLineUp className="h-5 w-5 text-muted-foreground" weight="duotone" />
+          </div>
+
+          {projectProgressData.length ? (
+            <div className="mt-6 h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={projectProgressData}
+                  layout="vertical"
+                  margin={{ left: 4, right: 24, top: 0, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    stroke="hsl(var(--border))"
+                    strokeDasharray="2 5"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(value) => `${value}%`}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    width={112}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`${value}%`, "Progression"]}
+                    contentStyle={{
+                      borderRadius: 12,
+                      borderColor: "hsl(var(--border))",
+                      background: "hsl(var(--popover))",
+                    }}
+                  />
+                  <Bar
+                    dataKey="progress"
+                    fill="#75845a"
+                    radius={[0, 6, 6, 0]}
+                    barSize={13}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="grid h-[280px] place-items-center text-center">
+              <div>
+                <Briefcase className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-3 text-sm font-medium">Aucun projet ouvert</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Les projets actifs apparaîtront ici.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border/70 p-5 sm:p-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Exécution
+            </p>
+            <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">
+              Répartition des tâches
+            </h2>
+          </div>
+
+          {taskStatusData.length ? (
+            <>
+              <div className="relative mt-3 h-[210px]">
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={taskStatusData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={3}
+                      innerRadius={62}
+                      outerRadius={84}
+                      paddingAngle={4}
                       dataKey="value"
+                      stroke="none"
                     >
-                      {taskStatusData.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
+                      {taskStatusData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [value, 'Tâches']} />
+                    <Tooltip
+                      formatter={(value) => [value, "Tâches"]}
+                      contentStyle={{
+                        borderRadius: 12,
+                        borderColor: "hsl(var(--border))",
+                        background: "hsl(var(--popover))",
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="flex flex-wrap gap-3 justify-center mt-2">
-                  {taskStatusData.map((d, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-xs">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                      <span className="text-muted-foreground">{d.name}</span>
-                      <span className="font-semibold">{d.value}</span>
-                    </div>
-                  ))}
+                <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                  <div className="text-center">
+                    <p className="font-mono text-3xl font-semibold">{tasks.length}</p>
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                      tâches
+                    </p>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
-                Aucune tâche
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Répartition priorités */}
-        <Card className="border border-border/50 shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-semibold">Priorités des tâches</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {taskPriorityData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={taskPriorityData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {taskPriorityData.map((entry, index) => (
-                        <Cell key={index} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [value, 'Tâches']} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap gap-3 justify-center mt-2">
-                  {taskPriorityData.map((d, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-xs">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                      <span className="text-muted-foreground">{d.name}</span>
-                      <span className="font-semibold">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
-                Aucune tâche
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Progression projets */}
-        <Card className="border border-border/50 shadow-none">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[15px] font-semibold">Progression des projets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {projectProgressData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={210}>
-                <BarChart data={projectProgressData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={80} />
-                  <Tooltip formatter={(v) => [`${v}%`, 'Progression']} />
-                  <Bar dataKey="progress" radius={[0, 4, 4, 0]}>
-                    {projectProgressData.map((entry, index) => (
-                      <Cell
-                        key={index}
-                        fill={entry.progress >= 70 ? '#22c55e' : entry.progress >= 30 ? '#f59e0b' : '#ef4444'}
+              <div className="grid grid-cols-3 gap-2 border-t border-border/70 pt-4">
+                {taskStatusData.map((item) => (
+                  <div key={item.name}>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: item.color }}
                       />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[210px] flex items-center justify-center text-muted-foreground text-sm">
-                Aucun projet
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tâches en cours + Priorités hautes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[20px] font-semibold tracking-tight">Tâches en cours</h2>
-            <Link to="/tasks">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Voir tout <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
-          {inProgressTasks.length > 0 ? (
-            <div className="space-y-2.5">
-              {inProgressTasks.slice(0, 5).map((task) => (
-                <Card key={task.id} className="border border-border/50 shadow-none">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[14px] truncate">{task.title}</p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{task.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge variant={getPriorityColor(task.priority) as any} className="text-xs">
-                          {task.priority === 'high' ? 'Haute' : task.priority === 'medium' ? 'Moyenne' : 'Basse'}
-                        </Badge>
-                        {task.due_date && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(task.due_date)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="border border-dashed border-border/70">
-              <CardContent className="py-10 text-center text-muted-foreground text-sm">
-                Aucune tâche en cours
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[20px] font-semibold tracking-tight">
-              Priorité haute
-              {highPriorityCount > 0 && (
-                <span className="ml-2 text-sm font-normal text-red-500 dark:text-red-400">({highPriorityCount})</span>
-              )}
-            </h2>
-            <Link to="/tasks">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Voir tout <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
-          </div>
-          {tasks.filter(t => t.priority === 'high' && t.status !== 'done').length > 0 ? (
-            <div className="space-y-2.5">
-              {tasks
-                .filter(t => t.priority === 'high' && t.status !== 'done')
-                .slice(0, 5)
-                .map((task) => (
-                  <Card key={task.id} className="border border-red-200 dark:border-red-900/50 shadow-none">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="font-medium text-[14px] truncate flex-1">{task.title}</p>
-                        <Badge variant="outline" className="text-xs flex-shrink-0">
-                          {task.status === 'todo' ? 'À faire' : 'En cours'}
-                        </Badge>
-                      </div>
-                      {task.due_date && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
-                          <Clock className="h-3 w-3" />
-                          Échéance : {formatDate(task.due_date)}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          ) : (
-            <Card className="border border-dashed border-border/70">
-              <CardContent className="py-10 text-center text-muted-foreground text-sm">
-                <TrendingUp className="h-6 w-6 mx-auto mb-2 text-green-500" />
-                Aucune tâche haute priorité en attente
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {/* Projets actifs */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[20px] font-semibold tracking-tight">Projets actifs</h2>
-          <Link to="/projects">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              Voir tout <ArrowRight className="ml-1 h-3 w-3" />
-            </Button>
-          </Link>
-        </div>
-        {activeProjectsList.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {activeProjectsList.slice(0, 3).map((project) => (
-              <Card key={project.id} className="border border-border/50 shadow-none hover:shadow-sm hover:border-border transition-all duration-200">
-                <CardHeader className="pb-2 pt-5">
-                  <CardTitle className="text-[16px] font-semibold line-clamp-1">{project.name}</CardTitle>
-                  {project.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{project.description}</p>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1.5">
-                      <span className="text-muted-foreground">Progression</span>
-                      <span className={`font-semibold ${project.progress >= 70 ? 'text-green-600' : project.progress >= 30 ? 'text-yellow-600' : 'text-red-600'}`}>
-                        {project.progress}%
+                      <span className="text-[10px] text-muted-foreground">
+                        {item.name}
                       </span>
                     </div>
-                    <Progress
-                      value={project.progress}
-                      className={`h-2 ${project.progress >= 70 ? '[&>div]:bg-green-500' : project.progress >= 30 ? '[&>div]:bg-yellow-500' : '[&>div]:bg-red-500'}`}
-                    />
+                    <p className="mt-1.5 font-mono text-lg font-semibold">
+                      {item.value}
+                    </p>
                   </div>
-                  {project.deadline && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      Deadline : {formatDate(project.deadline)}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="grid h-[280px] place-items-center text-center">
+              <div>
+                <CheckCircle className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-3 text-sm font-medium">Aucune tâche</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-2">
+        <div className="overflow-hidden rounded-2xl border border-border/70">
+          <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold">Actions en cours</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Travail actuellement engagé
+              </p>
+            </div>
+            <Button asChild variant="ghost" size="sm" className="rounded-lg">
+              <Link to="/tasks">
+                Tout voir
+                <ArrowRight className="ml-2 h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </div>
-        ) : (
-          <Card className="border border-dashed border-border/70">
-            <CardContent className="py-10 text-center text-muted-foreground text-sm">
-              Aucun projet actif
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          <div className="divide-y divide-border/70">
+            {inProgressTasks.slice(0, 5).map((task) => (
+              <Link
+                key={task.id}
+                to="/tasks"
+                className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/30"
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    task.priority === "high"
+                      ? "bg-red-500"
+                      : task.priority === "medium"
+                        ? "bg-amber-500"
+                        : "bg-zinc-400"
+                  }`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {task.title}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {task.assigned_to?.length || 0} responsable
+                    {(task.assigned_to?.length || 0) > 1 ? "s" : ""}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarBlank className="h-3.5 w-3.5" />
+                  {formatDate(task.due_date)}
+                </span>
+              </Link>
+            ))}
+            {!inProgressTasks.length && (
+              <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+                Aucune tâche en cours.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-border/70">
+          <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold">Points d’attention</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Tâches de priorité haute
+              </p>
+            </div>
+            <span className="font-mono text-xl font-semibold text-red-600 dark:text-red-400">
+              {priorityTasks.length}
+            </span>
+          </div>
+          <div className="divide-y divide-border/70">
+            {priorityTasks.slice(0, 5).map((task) => (
+              <Link
+                key={task.id}
+                to="/tasks"
+                className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/30"
+              >
+                <Flag className="h-4 w-4 shrink-0 text-red-500" weight="fill" />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {task.title}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  {formatDate(task.due_date)}
+                </span>
+              </Link>
+            ))}
+            {!priorityTasks.length && (
+              <div className="px-5 py-10 text-center">
+                <CheckCircle
+                  className="mx-auto h-5 w-5 text-emerald-600"
+                  weight="fill"
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Aucun point critique en attente.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

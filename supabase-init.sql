@@ -1,5 +1,7 @@
 -- Script d'initialisation complet de la base de données Supabase
 -- À exécuter dans le SQL Editor de Supabase
+-- Exécutez ensuite supabase-auth-migration.sql pour ajouter les index
+-- et harmoniser toutes les politiques RLS.
 
 -- Supprimer les tables existantes si nécessaire (ATTENTION: supprime les données)
 -- DROP TABLE IF EXISTS tasks CASCADE;
@@ -14,7 +16,8 @@ CREATE TABLE IF NOT EXISTS team (
   role TEXT NOT NULL,
   email TEXT,
   avatar TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
 
 -- Table des tâches
@@ -27,7 +30,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   assignee TEXT, -- Legacy field for backward compatibility
   assigned_to INTEGER[], -- Array of team member IDs
   due_date DATE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
 
 -- Table des projets
@@ -39,7 +43,8 @@ CREATE TABLE IF NOT EXISTS projects (
   progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
   assigned_to INTEGER[], -- Array of team member IDs
   deadline DATE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
 
 -- Table des OKRs
@@ -49,7 +54,8 @@ CREATE TABLE IF NOT EXISTS okrs (
   key_results TEXT, -- Stored as JSON string
   status TEXT CHECK (status IN ('on-track', 'at-risk', 'off-track')) DEFAULT 'on-track',
   quarter TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
 
 -- Ajouter des commentaires pour documenter les tables
@@ -67,12 +73,31 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE okrs ENABLE ROW LEVEL SECURITY;
 
--- Créer des politiques permissives pour permettre toutes les opérations
--- (À adapter selon vos besoins de sécurité)
-CREATE POLICY "Enable all operations for team" ON team FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Enable all operations for tasks" ON tasks FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Enable all operations for projects" ON projects FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Enable all operations for okrs" ON okrs FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Enable all operations for team" ON team;
+DROP POLICY IF EXISTS "Enable all operations for tasks" ON tasks;
+DROP POLICY IF EXISTS "Enable all operations for projects" ON projects;
+DROP POLICY IF EXISTS "Enable all operations for okrs" ON okrs;
+DROP POLICY IF EXISTS "Users can manage own team" ON team;
+DROP POLICY IF EXISTS "Users can manage own tasks" ON tasks;
+DROP POLICY IF EXISTS "Users can manage own projects" ON projects;
+DROP POLICY IF EXISTS "Users can manage own okrs" ON okrs;
+
+CREATE POLICY "Users can manage own team" ON team
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = owner_id)
+  WITH CHECK ((SELECT auth.uid()) = owner_id);
+CREATE POLICY "Users can manage own tasks" ON tasks
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = owner_id)
+  WITH CHECK ((SELECT auth.uid()) = owner_id);
+CREATE POLICY "Users can manage own projects" ON projects
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = owner_id)
+  WITH CHECK ((SELECT auth.uid()) = owner_id);
+CREATE POLICY "Users can manage own okrs" ON okrs
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = owner_id)
+  WITH CHECK ((SELECT auth.uid()) = owner_id);
 
 -- Insérer des données de démonstration (optionnel)
 -- Membres d'équipe

@@ -97,18 +97,18 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 600;
     letter-spacing: -0.02em;
   }
 }
 
 @layer components {
-  /* Custom styles pour TeamHub */
+  /* Custom styles pour Pantheon Capital Management */
   .task-card {
     @apply transition-all duration-200 hover:shadow-lg;
   }

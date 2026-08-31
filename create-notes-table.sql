@@ -1,5 +1,6 @@
 -- Script pour créer la table notes dans Supabase
 -- À exécuter dans le SQL Editor de Supabase
+-- Exécutez ensuite supabase-auth-migration.sql pour harmoniser les politiques.
 
 -- Créer la table notes
 CREATE TABLE IF NOT EXISTS notes (
@@ -7,7 +8,8 @@ CREATE TABLE IF NOT EXISTS notes (
   title TEXT NOT NULL DEFAULT 'Nouvelle note',
   content TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid()
 );
 
 -- Créer un index sur updated_at pour optimiser le tri
@@ -16,11 +18,12 @@ CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC);
 -- Activer Row Level Security (RLS)
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 
--- Créer une politique pour permettre toutes les opérations (à adapter selon vos besoins)
-CREATE POLICY "Enable all operations for notes" ON notes
-  FOR ALL
-  USING (true)
-  WITH CHECK (true);
+DROP POLICY IF EXISTS "Enable all operations for notes" ON notes;
+DROP POLICY IF EXISTS "Users can manage own notes" ON notes;
+CREATE POLICY "Users can manage own notes" ON notes
+  FOR ALL TO authenticated
+  USING ((SELECT auth.uid()) = owner_id)
+  WITH CHECK ((SELECT auth.uid()) = owner_id);
 
 -- Vérifier la structure de la table
 SELECT

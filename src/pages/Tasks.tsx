@@ -1,484 +1,989 @@
-import { useEffect, useState } from 'react';
-import { taskService } from '../services/taskService';
-import { teamService } from '../services/teamService';
-import { Task, TeamMember } from '../lib/supabase';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
-import { Checkbox } from '../components/ui/checkbox';
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
-import { useToast } from '../hooks/use-toast';
-import { Plus, X, Filter } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import {
+  CalendarBlank,
+  CaretRight,
+  Check,
+  CheckCircle,
+  Circle,
+  Clock,
+  Flag,
+  ListChecks,
+  MagnifyingGlass,
+  Plus,
+  Trash,
+  UsersThree,
+  X,
+} from "@phosphor-icons/react";
+import { taskService } from "@/services/taskService";
+import { teamService } from "@/services/teamService";
+import { Task, TeamMember } from "@/lib/supabase";
+import { InlineTextEdit } from "@/components/InlineTextEdit";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+
+const STATUS_CONFIG = {
+  todo: {
+    label: "À faire",
+    dotClassName: "bg-zinc-400",
+    icon: Circle,
+  },
+  "in-progress": {
+    label: "En cours",
+    dotClassName: "bg-sky-500",
+    icon: Clock,
+  },
+  done: {
+    label: "Terminée",
+    dotClassName: "bg-emerald-500",
+    icon: CheckCircle,
+  },
+} satisfies Record<
+  Task["status"],
+  { label: string; dotClassName: string; icon: typeof Circle }
+>;
 
 const PRIORITY_CONFIG = {
-  high: { label: 'Haute', color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400', dot: 'bg-red-500' },
-  medium: { label: 'Moyenne', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400', dot: 'bg-yellow-500' },
-  low: { label: 'Basse', color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400', dot: 'bg-green-500' },
+  high: {
+    label: "Haute",
+    dotClassName: "bg-red-500",
+    className:
+      "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
+  },
+  medium: {
+    label: "Moyenne",
+    dotClassName: "bg-amber-500",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
+  },
+  low: {
+    label: "Basse",
+    dotClassName: "bg-zinc-400",
+    className: "border-border bg-muted text-muted-foreground",
+  },
+} satisfies Record<
+  Task["priority"],
+  { label: string; dotClassName: string; className: string }
+>;
+
+const formatDate = (date?: string | null) => {
+  if (!date) return "Sans échéance";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${date}T12:00:00`));
 };
 
-const COLUMN_CONFIG = {
-  todo: { label: 'À faire', color: 'bg-slate-100 dark:bg-slate-800/60', headerColor: 'text-slate-700 dark:text-slate-200', countColor: 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200' },
-  'in-progress': { label: 'En cours', color: 'bg-blue-100 dark:bg-blue-900/40', headerColor: 'text-blue-700 dark:text-blue-300', countColor: 'bg-blue-200 dark:bg-blue-800/60 text-blue-700 dark:text-blue-300' },
-  done: { label: 'Terminé', color: 'bg-green-100 dark:bg-green-900/40', headerColor: 'text-green-700 dark:text-green-300', countColor: 'bg-green-200 dark:bg-green-800/60 text-green-700 dark:text-green-300' },
-};
+const isOverdue = (task: Task) =>
+  Boolean(
+    task.due_date &&
+      task.status !== "done" &&
+      new Date(`${task.due_date}T23:59:59`) < new Date(),
+  );
 
 export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterPriority, setFilterPriority] = useState<string>('all');
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterPriority, setFilterPriority] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [updatingTeam, setUpdatingTeam] = useState(false);
   const { toast } = useToast();
 
   const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    priority: 'medium' as Task['priority'],
-    status: 'todo' as Task['status'],
-    assignee: '',
+    title: "",
+    description: "",
+    priority: "medium" as Task["priority"],
+    status: "todo" as Task["status"],
+    assignee: "",
     assigned_to: [] as number[],
-    due_date: ''
+    due_date: "",
   });
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const [tasksData, teamData] = await Promise.all([
-        taskService.getAllTasks(),
-        teamService.getAllTeam()
-      ]);
-      setTasks(tasksData || []);
-      setTeamMembers(teamData || []);
-    } catch (err) {
-      console.error('Error loading data:', err);
-    }
+    const [tasksData, teamData] = await Promise.all([
+      taskService.getAllTasks(),
+      teamService.getAllTeam(),
+    ]);
+    setTasks(tasksData || []);
+    setTeamMembers(teamData || []);
+    setSelectedTaskId((currentId) => {
+      if (currentId && tasksData.some((task) => task.id === currentId)) {
+        return currentId;
+      }
+      return tasksData[0]?.id ?? null;
+    });
     setLoading(false);
+    return tasksData;
   };
 
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTask.title) {
-      toast({ title: "Erreur", description: "Le titre est requis", variant: "destructive" });
+  const handleAddTask = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!newTask.title.trim()) {
+      toast({
+        title: "Titre requis",
+        description: "Donnez un titre à la tâche.",
+        variant: "destructive",
+      });
       return;
     }
 
-    const success = await taskService.addTask(newTask);
-    if (success) {
-      toast({ title: "Tâche créée !" });
-      setShowForm(false);
-      setNewTask({ title: '', description: '', priority: 'medium', status: 'todo', assignee: '', assigned_to: [], due_date: '' });
-      loadData();
-    } else {
-      toast({ title: "Erreur", description: "Impossible de créer la tâche", variant: "destructive" });
+    setCreating(true);
+    const success = await taskService.addTask({
+      ...newTask,
+      title: newTask.title.trim(),
+      description: newTask.description.trim(),
+    });
+
+    if (!success) {
+      setCreating(false);
+      toast({
+        title: "Création impossible",
+        description: "La tâche n’a pas pu être enregistrée.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    const refreshedTasks = await loadData();
+    setSelectedTaskId(refreshedTasks[0]?.id ?? null);
+    setCreating(false);
+    setShowCreateDialog(false);
+    setNewTask({
+      title: "",
+      description: "",
+      priority: "medium",
+      status: "todo",
+      assignee: "",
+      assigned_to: [],
+      due_date: "",
+    });
+    toast({ title: "Tâche créée" });
   };
 
-  const handleUpdateTask = async (taskId: number, updates: Partial<Task>) => {
+  const handleUpdateTask = async (
+    taskId: number,
+    updates: Partial<Task>,
+  ): Promise<boolean> => {
     const success = await taskService.updateTask(taskId, updates);
-    if (success) {
-      toast({ title: "Tâche mise à jour" });
-      loadData();
+
+    if (!success) {
+      toast({
+        title: "Modification non enregistrée",
+        description: "Vérifiez votre connexion puis réessayez.",
+        variant: "destructive",
+      });
+      return false;
     }
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === taskId ? { ...task, ...updates } : task,
+      ),
+    );
+    return true;
   };
 
-  const handleDeleteTask = async (taskId: number) => {
-    if (confirm('Supprimer cette tâche ?')) {
-      const success = await taskService.deleteTask(taskId);
-      if (success) {
-        toast({ title: "Tâche supprimée" });
-        setExpandedTaskId(null);
-        loadData();
-      }
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    const deletedTaskId = taskToDelete.id;
+    const success = await taskService.deleteTask(deletedTaskId);
+    if (!success) {
+      toast({
+        title: "Suppression impossible",
+        description: "La tâche n’a pas pu être supprimée.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    const remainingTasks = tasks.filter((task) => task.id !== deletedTaskId);
+    setTasks(remainingTasks);
+    setSelectedTaskId((currentId) =>
+      currentId === deletedTaskId ? (remainingTasks[0]?.id ?? null) : currentId,
+    );
+    setTaskToDelete(null);
+    toast({ title: "Tâche supprimée" });
   };
 
-  const toggleAssignee = (memberId: number) => {
-    setNewTask(prev => ({
-      ...prev,
-      assigned_to: prev.assigned_to.includes(memberId)
-        ? prev.assigned_to.filter(id => id !== memberId)
-        : [...prev.assigned_to, memberId]
+  const toggleNewTaskAssignee = (memberId: number) => {
+    setNewTask((current) => ({
+      ...current,
+      assigned_to: current.assigned_to.includes(memberId)
+        ? current.assigned_to.filter((id) => id !== memberId)
+        : [...current.assigned_to, memberId],
     }));
   };
 
-  const getAssignedMembers = (task: Task): TeamMember[] => {
-    if (!task.assigned_to || task.assigned_to.length === 0) return [];
-    return teamMembers.filter(member => task.assigned_to?.includes(member.id));
+  const toggleTaskAssignee = async (task: Task, memberId: number) => {
+    const currentAssignees = task.assigned_to || [];
+    const assignedTo = currentAssignees.includes(memberId)
+      ? currentAssignees.filter((id) => id !== memberId)
+      : [...currentAssignees, memberId];
+
+    setUpdatingTeam(true);
+    const saved = await handleUpdateTask(task.id, {
+      assigned_to: assignedTo,
+    });
+    setUpdatingTeam(false);
+    return saved;
   };
 
-  const filteredTasks = tasks.filter(t => {
-    const matchSearch = !searchQuery ||
-      t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchPriority = filterPriority === 'all' || t.priority === filterPriority;
-    return matchSearch && matchPriority;
-  });
+  const filteredTasks = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase().trim();
+    return tasks.filter((task) => {
+      const matchesSearch =
+        !normalizedQuery ||
+        task.title.toLowerCase().includes(normalizedQuery) ||
+        task.description?.toLowerCase().includes(normalizedQuery);
+      const matchesPriority =
+        filterPriority === "all" || task.priority === filterPriority;
+      return matchesSearch && matchesPriority;
+    });
+  }, [filterPriority, searchQuery, tasks]);
 
-  const totalFiltered = filteredTasks.length;
-  const hasFilters = searchQuery || filterPriority !== 'all';
+  const selectedTask =
+    filteredTasks.find((task) => task.id === selectedTaskId) ||
+    filteredTasks[0] ||
+    null;
+
+  const assignedMembers = selectedTask
+    ? teamMembers.filter((member) =>
+        selectedTask.assigned_to?.includes(member.id),
+      )
+    : [];
+
+  const stats = {
+    total: tasks.length,
+    todo: tasks.filter((task) => task.status === "todo").length,
+    inProgress: tasks.filter((task) => task.status === "in-progress").length,
+    completion: tasks.length
+      ? Math.round(
+          (tasks.filter((task) => task.status === "done").length /
+            tasks.length) *
+            100,
+        )
+      : 0,
+  };
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
-        <div className="h-9 w-48 bg-muted animate-pulse rounded" />
-        <div className="h-9 w-full bg-muted animate-pulse rounded" />
-        <div className="grid grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="space-y-3">
-              <div className="h-6 w-24 bg-muted animate-pulse rounded" />
-              {[...Array(3)].map((_, j) => (
-                <div key={j} className="h-24 bg-muted animate-pulse rounded-lg" />
-              ))}
-            </div>
-          ))}
+      <div className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-[1480px] p-5 sm:p-8">
+        <div className="h-10 w-52 animate-pulse rounded-lg bg-muted" />
+        <div className="mt-8 grid min-h-[640px] overflow-hidden rounded-2xl border border-border/60 lg:grid-cols-[340px_1fr]">
+          <div className="space-y-3 border-r border-border/60 bg-muted/20 p-4">
+            {[...Array(7)].map((_, index) => (
+              <div key={index} className="h-20 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+          <div className="space-y-8 p-8 lg:p-12">
+            <div className="h-12 w-2/3 animate-pulse rounded-xl bg-muted" />
+            <div className="h-32 animate-pulse rounded-xl bg-muted" />
+            <div className="h-48 animate-pulse rounded-xl bg-muted" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-[1480px] p-4 sm:p-6 lg:p-8">
+      <header className="mb-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tâches</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {tasks.filter(t => t.status === 'done').length}/{tasks.length} tâches complétées
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Execution management
+          </p>
+          <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+            Registre des tâches
+          </h1>
+          <p className="mt-2 max-w-[62ch] text-sm leading-6 text-muted-foreground">
+            Priorisez le travail, attribuez les responsabilités et faites
+            progresser chaque action depuis une vue unique.
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? <><X className="h-4 w-4 mr-2" />Annuler</> : <><Plus className="h-4 w-4 mr-2" />Nouvelle tâche</>}
-        </Button>
-      </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 items-center">
-        <div className="relative flex-1 max-w-xs">
-          <Input
-            placeholder="Rechercher une tâche..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-8"
-          />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
+        <div className="flex flex-wrap items-end gap-6">
+          <dl className="flex divide-x divide-border/70">
+            {[
+              { label: "Total", value: stats.total },
+              { label: "À faire", value: stats.todo },
+              { label: "En cours", value: stats.inProgress },
+              { label: "Complétion", value: `${stats.completion}%` },
+            ].map(({ label, value }) => (
+              <div key={label} className="px-4 first:pl-0">
+                <dd className="font-mono text-xl font-semibold tabular-nums">
+                  {value}
+                </dd>
+                <dt className="mt-0.5 text-[11px] text-muted-foreground">
+                  {label}
+                </dt>
+              </div>
+            ))}
+          </dl>
 
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-36 h-9">
-              <SelectValue placeholder="Priorité" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes priorités</SelectItem>
-              <SelectItem value="high">Haute</SelectItem>
-              <SelectItem value="medium">Moyenne</SelectItem>
-              <SelectItem value="low">Basse</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="h-10 rounded-xl px-4 active:scale-[0.98]">
+                <Plus className="mr-2 h-4 w-4" weight="bold" />
+                Nouvelle tâche
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl tracking-[-0.035em]">
+                  Créer une tâche
+                </DialogTitle>
+                <DialogDescription>
+                  Définissez l’action, sa priorité et les personnes responsables.
+                </DialogDescription>
+              </DialogHeader>
 
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setFilterPriority('all'); }}>
-            Réinitialiser
-          </Button>
-        )}
+              <form onSubmit={handleAddTask} className="mt-2 space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <label htmlFor="task-title" className="text-sm font-medium">
+                      Titre
+                    </label>
+                    <Input
+                      id="task-title"
+                      value={newTask.title}
+                      onChange={(event) =>
+                        setNewTask({ ...newTask, title: event.target.value })
+                      }
+                      placeholder="Ex. Finaliser le mémorandum d’investissement"
+                      className="h-11 rounded-xl"
+                      required
+                      autoFocus
+                    />
+                  </div>
 
-        {hasFilters && (
-          <span className="text-sm text-muted-foreground">
-            {totalFiltered} résultat{totalFiltered !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <label
+                      htmlFor="task-description"
+                      className="text-sm font-medium"
+                    >
+                      Description
+                    </label>
+                    <Textarea
+                      id="task-description"
+                      value={newTask.description}
+                      onChange={(event) =>
+                        setNewTask({
+                          ...newTask,
+                          description: event.target.value,
+                        })
+                      }
+                      placeholder="Résultat attendu et éléments de contexte."
+                      className="min-h-24 resize-none rounded-xl"
+                    />
+                  </div>
 
-      {/* Form */}
-      {showForm && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <form onSubmit={handleAddTask} className="space-y-4">
-              <h3 className="text-base font-semibold">Nouvelle tâche</h3>
+                  <div className="space-y-2">
+                    <label htmlFor="task-priority" className="text-sm font-medium">
+                      Priorité
+                    </label>
+                    <Select
+                      value={newTask.priority}
+                      onValueChange={(value) =>
+                        setNewTask({
+                          ...newTask,
+                          priority: value as Task["priority"],
+                        })
+                      }
+                    >
+                      <SelectTrigger id="task-priority" className="h-11 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="high">Haute</SelectItem>
+                        <SelectItem value="medium">Moyenne</SelectItem>
+                        <SelectItem value="low">Basse</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <Input
-                value={newTask.title}
-                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                placeholder="Titre de la tâche *"
-                required
-                autoFocus
-              />
+                  <div className="space-y-2">
+                    <label htmlFor="task-deadline" className="text-sm font-medium">
+                      Échéance
+                    </label>
+                    <Input
+                      id="task-deadline"
+                      type="date"
+                      value={newTask.due_date}
+                      onChange={(event) =>
+                        setNewTask({ ...newTask, due_date: event.target.value })
+                      }
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
 
-              <Textarea
-                value={newTask.description}
-                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                placeholder="Description (optionnel)"
-                rows={2}
-              />
+                  {teamMembers.length > 0 && (
+                    <div className="space-y-2 sm:col-span-2">
+                      <span className="text-sm font-medium">Responsables</span>
+                      <div className="grid max-h-44 gap-1 overflow-y-auto rounded-xl border p-2 sm:grid-cols-2">
+                        {teamMembers.map((member) => (
+                          <label
+                            key={member.id}
+                            htmlFor={`new-task-member-${member.id}`}
+                            className="flex cursor-pointer items-center gap-2.5 rounded-lg p-2 transition-colors hover:bg-muted"
+                          >
+                            <Checkbox
+                              id={`new-task-member-${member.id}`}
+                              checked={newTask.assigned_to.includes(member.id)}
+                              onCheckedChange={() =>
+                                toggleNewTaskAssignee(member.id)
+                              }
+                            />
+                            <Avatar className="h-7 w-7 rounded-lg">
+                              <AvatarImage src={member.avatar} />
+                              <AvatarFallback className="rounded-lg text-[9px]">
+                                {member.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-medium">
+                                {member.name}
+                              </span>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {member.role}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Priorité</label>
-                  <Select
-                    value={newTask.priority}
-                    onValueChange={(v) => setNewTask({ ...newTask, priority: v as Task['priority'] })}
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowCreateDialog(false)}
                   >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high">Haute</SelectItem>
-                      <SelectItem value="medium">Moyenne</SelectItem>
-                      <SelectItem value="low">Basse</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={creating}>
+                    {creating ? "Création…" : "Créer la tâche"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
+
+      <div className="grid min-h-[650px] overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_26px_70px_-48px_rgba(24,24,20,0.45)] lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
+        <aside className="border-b border-border/70 bg-muted/20 lg:border-b-0 lg:border-r">
+          <div className="space-y-3 border-b border-border/70 p-4">
+            <div className="relative">
+              <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher une tâche"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="h-10 rounded-xl border-border/60 bg-background pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Effacer la recherche"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Select value={filterPriority} onValueChange={setFilterPriority}>
+              <SelectTrigger className="h-9 rounded-xl border-border/60 bg-background text-xs">
+                <SelectValue placeholder="Toutes les priorités" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les priorités</SelectItem>
+                <SelectItem value="high">Priorité haute</SelectItem>
+                <SelectItem value="medium">Priorité moyenne</SelectItem>
+                <SelectItem value="low">Priorité basse</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="max-h-[310px] overflow-y-auto p-2 lg:max-h-[calc(100dvh-18rem)]">
+            {filteredTasks.map((task) => {
+              const selected = selectedTask?.id === task.id;
+              const status = STATUS_CONFIG[task.status];
+              const priority = PRIORITY_CONFIG[task.priority];
+
+              return (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => setSelectedTaskId(task.id)}
+                  className={`group/list mb-1 w-full rounded-xl p-3.5 text-left outline-none transition-[background-color,color,transform] duration-200 focus-visible:ring-2 focus-visible:ring-ring ${
+                    selected
+                      ? "bg-[#20231e] text-[#f7f7f2] shadow-[0_14px_30px_-24px_rgba(20,24,18,0.8)] dark:bg-[#eceee7] dark:text-[#181a16]"
+                      : "hover:translate-x-0.5 hover:bg-background"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${priority.dotClassName}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="line-clamp-2 text-sm font-semibold leading-5">
+                          {task.title}
+                        </span>
+                        <CaretRight
+                          className={`h-3.5 w-3.5 shrink-0 transition-transform group-hover/list:translate-x-0.5 ${
+                            selected ? "opacity-80" : "text-muted-foreground"
+                          }`}
+                          weight="bold"
+                        />
+                      </span>
+                      <span
+                        className={`mt-2 flex items-center justify-between gap-3 text-[11px] ${
+                          selected
+                            ? "text-[#bdc3b4] dark:text-[#55594f]"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        <span>{status.label}</span>
+                        <span
+                          className={
+                            isOverdue(task) ? "text-red-400" : undefined
+                          }
+                        >
+                          {formatDate(task.due_date)}
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+
+            {!filteredTasks.length && (
+              <div className="px-4 py-14 text-center">
+                <ListChecks className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-3 text-sm font-medium">
+                  {tasks.length ? "Aucun résultat" : "Aucune tâche pour le moment"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {tasks.length
+                    ? "Modifiez la recherche ou la priorité."
+                    : "Créez une première action à piloter."}
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <main className="min-w-0">
+          {selectedTask ? (
+            <div className="p-5 sm:p-7 lg:p-10 xl:p-12">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  <ListChecks className="h-4 w-4" weight="duotone" />
+                  TASK-{String(selectedTask.id).padStart(3, "0")}
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Date d'échéance</label>
-                  <Input
-                    type="date"
-                    value={newTask.due_date}
-                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTaskToDelete(selectedTask)}
+                  className="h-8 rounded-lg px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash className="mr-1.5 h-4 w-4" />
+                  Supprimer
+                </Button>
               </div>
 
-              {teamMembers.length > 0 && (
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Assigner à</label>
-                  <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto bg-background">
-                    {teamMembers.map(member => (
-                      <div key={member.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`member-${member.id}`}
-                          checked={newTask.assigned_to.includes(member.id)}
-                          onCheckedChange={() => toggleAssignee(member.id)}
+              <div className="mt-5 max-w-4xl">
+                <InlineTextEdit
+                  value={selectedTask.title}
+                  placeholder="Titre de la tâche"
+                  ariaLabel="Titre de la tâche"
+                  required
+                  onSave={(title) =>
+                    handleUpdateTask(selectedTask.id, { title })
+                  }
+                  displayClassName="py-1 text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl"
+                  inputClassName="h-14 rounded-xl text-2xl font-semibold tracking-[-0.03em]"
+                  iconClassName="mt-2 h-5 w-5 opacity-40"
+                />
+              </div>
+
+              <section className="mt-8 max-w-4xl">
+                <div className="mb-2 flex items-center justify-between gap-4">
+                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Description
+                  </h2>
+                  <span className="text-[11px] text-muted-foreground">
+                    Cliquez dans le texte pour modifier
+                  </span>
+                </div>
+                <InlineTextEdit
+                  value={selectedTask.description}
+                  placeholder="Ajoutez le résultat attendu, les dépendances ou les points de contrôle."
+                  ariaLabel={`Description de ${selectedTask.title}`}
+                  multiline
+                  onSave={(description) =>
+                    handleUpdateTask(selectedTask.id, { description })
+                  }
+                  displayClassName="min-h-28 rounded-xl border border-dashed border-border/80 bg-muted/15 p-4 text-[15px] leading-7 transition-[border-color,background-color] hover:border-foreground/30 hover:bg-muted/30"
+                  inputClassName="min-h-32 rounded-xl text-[15px] leading-7"
+                  iconClassName="mt-1 h-4 w-4 opacity-50"
+                />
+              </section>
+
+              <div className="mt-10 grid gap-10 border-t border-border/70 pt-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+                <div className="space-y-8">
+                  <section>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      Workflow
+                    </p>
+                    <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">
+                      État d’avancement
+                    </h2>
+                    <div className="mt-5 grid gap-2 sm:grid-cols-3">
+                      {(Object.keys(STATUS_CONFIG) as Task["status"][]).map(
+                        (statusKey) => {
+                          const config = STATUS_CONFIG[statusKey];
+                          const StatusIcon = config.icon;
+                          const active = selectedTask.status === statusKey;
+
+                          return (
+                            <button
+                              key={statusKey}
+                              type="button"
+                              onClick={() =>
+                                void handleUpdateTask(selectedTask.id, {
+                                  status: statusKey,
+                                })
+                              }
+                              className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-sm outline-none transition-[background-color,border-color,transform] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring ${
+                                active
+                                  ? "border-[#68764f] bg-[#eef1e6] font-semibold dark:border-[#9dab7f] dark:bg-[#252a21]"
+                                  : "border-border/70 hover:bg-muted/30"
+                              }`}
+                            >
+                              <StatusIcon
+                                className={`h-4 w-4 ${
+                                  active ? "text-[#68764f]" : "text-muted-foreground"
+                                }`}
+                                weight={active ? "fill" : "regular"}
+                              />
+                              {config.label}
+                              {active && (
+                                <Check
+                                  className="ml-auto h-3.5 w-3.5 text-[#68764f]"
+                                  weight="bold"
+                                />
+                              )}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="grid overflow-hidden rounded-xl border border-border/70 sm:grid-cols-2">
+                    <div className="space-y-2 border-b border-border/70 p-4 sm:border-b-0 sm:border-r">
+                      <label
+                        htmlFor={`priority-${selectedTask.id}`}
+                        className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                      >
+                        Priorité
+                      </label>
+                      <Select
+                        value={selectedTask.priority}
+                        onValueChange={(value) =>
+                          void handleUpdateTask(selectedTask.id, {
+                            priority: value as Task["priority"],
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          id={`priority-${selectedTask.id}`}
+                          className={`h-10 rounded-lg ${
+                            PRIORITY_CONFIG[selectedTask.priority].className
+                          }`}
+                        >
+                          <Flag className="mr-2 h-4 w-4" weight="fill" />
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="high">Haute</SelectItem>
+                          <SelectItem value="medium">Moyenne</SelectItem>
+                          <SelectItem value="low">Basse</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 p-4">
+                      <label
+                        htmlFor={`task-deadline-${selectedTask.id}`}
+                        className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                      >
+                        Échéance
+                      </label>
+                      <div className="relative">
+                        <CalendarBlank
+                          className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${
+                            isOverdue(selectedTask)
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`}
                         />
-                        <label htmlFor={`member-${member.id}`} className="flex items-center gap-2 flex-1 cursor-pointer">
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={member.avatar} />
-                            <AvatarFallback className="text-[9px]">{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{member.name}</span>
-                          <span className="text-xs text-muted-foreground">({member.role})</span>
-                        </label>
+                        <Input
+                          id={`task-deadline-${selectedTask.id}`}
+                          type="date"
+                          value={selectedTask.due_date || ""}
+                          onChange={(event) =>
+                            void handleUpdateTask(selectedTask.id, {
+                              due_date: event.target.value || null,
+                            })
+                          }
+                          className={`h-10 rounded-lg pl-9 ${
+                            isOverdue(selectedTask)
+                              ? "border-destructive/40 text-destructive"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                <aside className="h-fit rounded-2xl bg-[#f0f1eb] p-5 dark:bg-[#1a1c18]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Responsables
+                      </p>
+                      <h2 className="mt-2 text-lg font-semibold tracking-[-0.02em]">
+                        Équipe assignée
+                      </h2>
+                    </div>
+                    <UsersThree
+                      className="h-5 w-5 text-muted-foreground"
+                      weight="duotone"
+                    />
+                  </div>
+
+                  <div className="mt-5 space-y-2">
+                    {assignedMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-3 rounded-xl bg-background/70 p-2.5"
+                      >
+                        <Avatar className="h-9 w-9 rounded-xl">
+                          <AvatarImage src={member.avatar} />
+                          <AvatarFallback className="rounded-xl text-[10px] font-semibold">
+                            {member.name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {member.name}
+                          </p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {member.role}
+                          </p>
+                        </div>
                       </div>
                     ))}
+
+                    {!assignedMembers.length && (
+                      <div className="rounded-xl border border-dashed border-border/80 px-4 py-6 text-center">
+                        <p className="text-sm font-medium">Aucun responsable</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Assignez les personnes chargées de cette action.
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
 
-              <div className="flex gap-2 pt-1">
-                <Button type="submit" size="sm">Créer la tâche</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowForm(false)}>Annuler</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="mt-4 h-10 w-full rounded-xl bg-background"
+                        disabled={updatingTeam}
+                      >
+                        <Plus className="mr-2 h-4 w-4" weight="bold" />
+                        Modifier l’équipe
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-80 rounded-xl p-2">
+                      <div className="px-2 pb-2 pt-1">
+                        <p className="text-sm font-semibold">Responsables</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Les changements sont enregistrés immédiatement.
+                        </p>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {teamMembers.map((member) => {
+                          const checked =
+                            selectedTask.assigned_to?.includes(member.id) ||
+                            false;
 
-      {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {(Object.keys(COLUMN_CONFIG) as Array<keyof typeof COLUMN_CONFIG>).map((status) => {
-          const statusTasks = filteredTasks.filter(t => t.status === status);
-          const config = COLUMN_CONFIG[status];
-
-          return (
-            <div key={status} className="flex flex-col gap-3">
-              {/* Column Header */}
-              <div className={`flex items-center justify-between px-3 py-2.5 rounded-lg ${config.color}`}>
-                <h3 className={`font-semibold text-sm ${config.headerColor}`}>
-                  {config.label}
-                </h3>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.countColor}`}>
-                  {statusTasks.length}
-                </span>
-              </div>
-
-              {/* Tasks */}
-              <div className="space-y-2.5">
-                {statusTasks.map((task) => {
-                  const assignedMembers = getAssignedMembers(task);
-                  const isExpanded = expandedTaskId === task.id;
-                  const prioConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-
-                  return (
-                    <Card
-                      key={task.id}
-                      className={`transition-all duration-200 cursor-pointer border hover:shadow-md ${
-                        isExpanded ? 'ring-2 ring-primary shadow-md' : 'hover:border-border shadow-none border-border/50'
-                      }`}
-                      onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
-                    >
-                      <CardContent className="p-4 space-y-3">
-                        {/* Priority dot + title */}
-                        <div className="flex items-start gap-2">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${prioConfig.dot}`} />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-[14px] leading-snug">{task.title}</h4>
-                            {task.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.description}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Meta info */}
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${prioConfig.color}`}>
-                            {prioConfig.label}
-                          </span>
-                          {task.due_date && (
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(task.due_date) < new Date() && task.status !== 'done'
-                                ? <span className="text-red-500 font-medium">⚠ {task.due_date}</span>
-                                : task.due_date
-                              }
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Assignees */}
-                        {assignedMembers.length > 0 && (
-                          <div className="flex -space-x-1">
-                            {assignedMembers.slice(0, 4).map(member => (
-                              <Avatar key={member.id} className="h-6 w-6 border-2 border-background">
+                          return (
+                            <label
+                              key={member.id}
+                              htmlFor={`task-assigned-${selectedTask.id}-${member.id}`}
+                              className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
+                            >
+                              <Checkbox
+                                id={`task-assigned-${selectedTask.id}-${member.id}`}
+                                checked={checked}
+                                disabled={updatingTeam}
+                                onCheckedChange={() =>
+                                  void toggleTaskAssignee(
+                                    selectedTask,
+                                    member.id,
+                                  )
+                                }
+                              />
+                              <Avatar className="h-8 w-8 rounded-lg">
                                 <AvatarImage src={member.avatar} />
-                                <AvatarFallback className="text-[8px] font-bold">
+                                <AvatarFallback className="rounded-lg text-[9px]">
                                   {member.name.substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                            ))}
-                            {assignedMembers.length > 4 && (
-                              <div className="h-6 w-6 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[8px] font-bold">
-                                +{assignedMembers.length - 4}
-                              </div>
-                            )}
-                          </div>
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium">
+                                  {member.name}
+                                </span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {member.role}
+                                </span>
+                              </span>
+                              {checked && (
+                                <Check
+                                  className="ml-auto h-4 w-4 text-emerald-600"
+                                  weight="bold"
+                                />
+                              )}
+                            </label>
+                          );
+                        })}
+                        {!teamMembers.length && (
+                          <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                            Ajoutez d’abord des membres depuis la page Équipe.
+                          </p>
                         )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
-                        {/* Expanded edit panel */}
-                        {isExpanded && (
-                          <div className="pt-3 border-t space-y-3" onClick={(e) => e.stopPropagation()}>
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Modifier</p>
-
-                            <Input
-                              placeholder="Titre"
-                              defaultValue={task.title}
-                              className="h-8 text-sm"
-                              onBlur={(e) => {
-                                if (e.target.value !== task.title) {
-                                  handleUpdateTask(task.id, { title: e.target.value });
-                                }
-                              }}
-                            />
-
-                            <Textarea
-                              placeholder="Description"
-                              defaultValue={task.description || ''}
-                              rows={2}
-                              className="text-sm resize-none"
-                              onBlur={(e) => {
-                                if (e.target.value !== task.description) {
-                                  handleUpdateTask(task.id, { description: e.target.value });
-                                }
-                              }}
-                            />
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[11px] text-muted-foreground mb-1">Statut</label>
-                                <Select
-                                  value={task.status}
-                                  onValueChange={(value) => handleUpdateTask(task.id, { status: value as Task['status'] })}
-                                >
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="todo">À faire</SelectItem>
-                                    <SelectItem value="in-progress">En cours</SelectItem>
-                                    <SelectItem value="done">Terminé</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <label className="block text-[11px] text-muted-foreground mb-1">Priorité</label>
-                                <Select
-                                  value={task.priority}
-                                  onValueChange={(value) => handleUpdateTask(task.id, { priority: value as Task['priority'] })}
-                                >
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="high">Haute</SelectItem>
-                                    <SelectItem value="medium">Moyenne</SelectItem>
-                                    <SelectItem value="low">Basse</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] text-muted-foreground mb-1">Date d'échéance</label>
-                              <Input
-                                type="date"
-                                defaultValue={task.due_date || ''}
-                                className="h-8 text-sm"
-                                onBlur={(e) => {
-                                  if (e.target.value !== task.due_date) {
-                                    handleUpdateTask(task.id, { due_date: e.target.value || undefined });
-                                  }
-                                }}
-                              />
-                            </div>
-
-                            <div className="flex gap-2 pt-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setExpandedTaskId(null)}
-                                className="flex-1 h-8 text-xs"
-                              >
-                                Fermer
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleDeleteTask(task.id)}
-                                className="h-8 text-xs"
-                              >
-                                Supprimer
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-
-                {statusTasks.length === 0 && (
-                  <div className="border border-dashed border-border/50 rounded-lg py-8 text-center text-xs text-muted-foreground">
-                    Aucune tâche
+                  <div className="mt-5 flex items-center gap-2 border-t border-border/60 pt-4 text-[11px] text-muted-foreground">
+                    <CalendarBlank
+                      className={`h-4 w-4 ${
+                        isOverdue(selectedTask) ? "text-destructive" : ""
+                      }`}
+                    />
+                    <span
+                      className={isOverdue(selectedTask) ? "text-destructive" : ""}
+                    >
+                      {isOverdue(selectedTask) && "Échéance dépassée · "}
+                      {formatDate(selectedTask.due_date)}
+                    </span>
                   </div>
-                )}
+                </aside>
               </div>
             </div>
-          );
-        })}
+          ) : (
+            <div className="grid min-h-[650px] place-items-center p-8 text-center">
+              <div>
+                <ListChecks
+                  className="mx-auto h-8 w-8 text-muted-foreground"
+                  weight="duotone"
+                />
+                <h2 className="mt-4 text-lg font-semibold">
+                  Aucune tâche sélectionnée
+                </h2>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Créez une tâche ou modifiez les filtres pour ouvrir son espace
+                  de suivi.
+                </p>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
+
+      <AlertDialog
+        open={Boolean(taskToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setTaskToDelete(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette tâche ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {taskToDelete?.title} sera supprimée définitivement. Cette action
+              ne peut pas être annulée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Conserver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDeleteTask()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

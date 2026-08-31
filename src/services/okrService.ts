@@ -55,13 +55,15 @@ export const okrService = {
           : okrData.key_results
       };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('okrs')
         .update(okrToUpdate)
-        .eq('id', okrId);
+        .eq('id', okrId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === okrId;
     } catch (error) {
       console.error('Error updating OKR:', error);
       return false;
@@ -71,13 +73,15 @@ export const okrService = {
   // Supprimer un OKR
   async deleteOKR(okrId: number): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('okrs')
         .delete()
-        .eq('id', okrId);
+        .eq('id', okrId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === okrId;
     } catch (error) {
       console.error('Error deleting OKR:', error);
       return false;

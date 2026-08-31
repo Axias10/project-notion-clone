@@ -72,13 +72,15 @@ export const projectService = {
   // Mettre à jour un projet
   async updateProject(projectId: number, projectData: Partial<Project>): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .update(projectData)
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === projectId;
     } catch (error) {
       console.error('Error updating project:', error);
       return false;
@@ -88,13 +90,15 @@ export const projectService = {
   // Supprimer un projet
   async deleteProject(projectId: number): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('projects')
         .delete()
-        .eq('id', projectId);
+        .eq('id', projectId)
+        .select('id')
+        .single();
 
       if (error) throw error;
-      return true;
+      return data.id === projectId;
     } catch (error) {
       console.error('Error deleting project:', error);
       return false;

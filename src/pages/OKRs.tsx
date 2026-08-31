@@ -1,425 +1,1018 @@
-import { useEffect, useState } from 'react';
-import { okrService } from '../services/okrService';
-import { OKR, KeyResult } from '../lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
-import { Progress } from '../components/ui/progress';
-import { Slider } from '../components/ui/slider';
-import { useToast } from '../hooks/use-toast';
-import { Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from "react";
+import {
+  CaretRight,
+  Check,
+  CheckCircle,
+  Circle,
+  Flag,
+  MagnifyingGlass,
+  Plus,
+  Target,
+  Trash,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
+import { okrService } from "@/services/okrService";
+import { KeyResult, OKR } from "@/lib/supabase";
+import { InlineTextEdit } from "@/components/InlineTextEdit";
+import { PercentageEditor } from "@/components/PercentageEditor";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+
+const STATUS_CONFIG = {
+  "on-track": {
+    label: "Dans les temps",
+    dotClassName: "bg-emerald-500",
+    className:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+    barClassName: "[&>div]:bg-emerald-600",
+    icon: CheckCircle,
+  },
+  "at-risk": {
+    label: "À risque",
+    dotClassName: "bg-amber-500",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
+    barClassName: "[&>div]:bg-amber-500",
+    icon: Warning,
+  },
+  "off-track": {
+    label: "Hors trajectoire",
+    dotClassName: "bg-red-500",
+    className:
+      "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300",
+    barClassName: "[&>div]:bg-red-500",
+    icon: Flag,
+  },
+} satisfies Record<
+  OKR["status"],
+  {
+    label: string;
+    dotClassName: string;
+    className: string;
+    barClassName: string;
+    icon: typeof CheckCircle;
+  }
+>;
+
+const getKeyResults = (okr: OKR): KeyResult[] =>
+  Array.isArray(okr.key_results) ? okr.key_results : [];
+
+const getKeyResultPercentage = (keyResult: KeyResult) => {
+  const target = keyResult.target > 0 ? keyResult.target : 100;
+  return Math.min(
+    100,
+    Math.max(0, Math.round((keyResult.progress / target) * 100)),
+  );
+};
+
+const calculateOverallProgress = (keyResults: KeyResult[]) => {
+  if (!keyResults.length) return 0;
+  return Math.round(
+    keyResults.reduce(
+      (total, keyResult) => total + getKeyResultPercentage(keyResult),
+      0,
+    ) / keyResults.length,
+  );
+};
 
 export default function OKRs() {
   const [okrs, setOKRs] = useState<OKR[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [selectedOKRId, setSelectedOKRId] = useState<number | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showAddResult, setShowAddResult] = useState(false);
+  const [okrToDelete, setOKRToDelete] = useState<OKR | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [expandedOKRId, setExpandedOKRId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
   const [newOKR, setNewOKR] = useState({
-    objective: '',
-    status: 'on-track' as OKR['status'],
-    quarter: '',
-    key_results: [] as KeyResult[]
+    objective: "",
+    status: "on-track" as OKR["status"],
+    quarter: "",
+    key_results: [] as KeyResult[],
+  });
+  const [newKeyResult, setNewKeyResult] = useState({
+    description: "",
+    progress: 0,
+    target: 100,
+  });
+  const [resultToAdd, setResultToAdd] = useState({
+    description: "",
+    progress: 0,
+    target: 100,
   });
 
-  const [newKR, setNewKR] = useState({ description: '', progress: 0, target: 100 });
-
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   const loadData = async () => {
     setLoading(true);
     const data = await okrService.getAllOKRs();
     setOKRs(data);
+    setSelectedOKRId((currentId) => {
+      if (currentId && data.some((okr) => okr.id === currentId)) {
+        return currentId;
+      }
+      return data[0]?.id ?? null;
+    });
     setLoading(false);
+    return data;
   };
 
-  const handleAddKeyResult = () => {
-    if (!newKR.description) {
-      toast({ title: "Erreur", description: "La description du KR est requise", variant: "destructive" });
-      return;
-    }
-    setNewOKR({
-      ...newOKR,
-      key_results: [...newOKR.key_results, { ...newKR }]
-    });
-    setNewKR({ description: '', progress: 0, target: 100 });
-  };
-
-  const handleRemoveKeyResult = (index: number) => {
-    setNewOKR({
-      ...newOKR,
-      key_results: newOKR.key_results.filter((_, i) => i !== index)
-    });
-  };
-
-  const handleAddOKR = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newOKR.objective) {
-      toast({ title: "Erreur", description: "L'objectif est requis", variant: "destructive" });
-      return;
-    }
-
-    if (newOKR.key_results.length === 0) {
-      toast({ title: "Erreur", description: "Au moins un Key Result est requis", variant: "destructive" });
-      return;
-    }
-
-    // Préparer l'OKR en convertissant les strings vides en null
-    const okrToAdd = {
-      ...newOKR,
-      quarter: newOKR.quarter.trim() === '' ? undefined : newOKR.quarter
-    };
-
-    const success = await okrService.addOKR(okrToAdd);
-    if (success) {
-      toast({ title: "Succès", description: "OKR créé !" });
-      setShowForm(false);
-      setNewOKR({
-        objective: '',
-        status: 'on-track',
-        quarter: '',
-        key_results: []
+  const addResultToDraft = () => {
+    const description = newKeyResult.description.trim();
+    if (!description) {
+      toast({
+        title: "Résultat clé requis",
+        description: "Ajoutez une description avant de continuer.",
+        variant: "destructive",
       });
-      loadData();
-    } else {
-      toast({ title: "Erreur", description: "Impossible de créer l'OKR", variant: "destructive" });
+      return;
     }
+
+    setNewOKR((current) => ({
+      ...current,
+      key_results: [...current.key_results, { ...newKeyResult, description }],
+    }));
+    setNewKeyResult({ description: "", progress: 0, target: 100 });
   };
 
-  const handleUpdateOKR = async (okrId: number, updates: Partial<OKR>) => {
+  const handleAddOKR = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!newOKR.objective.trim()) {
+      toast({
+        title: "Objectif requis",
+        description: "Donnez un intitulé à l’objectif.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!newOKR.key_results.length) {
+      toast({
+        title: "Résultat clé requis",
+        description: "Ajoutez au moins un résultat mesurable.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreating(true);
+    const success = await okrService.addOKR({
+      ...newOKR,
+      objective: newOKR.objective.trim(),
+      quarter: newOKR.quarter.trim() || null,
+    });
+
+    if (!success) {
+      setCreating(false);
+      toast({
+        title: "Création impossible",
+        description: "L’OKR n’a pas pu être enregistré.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const refreshedOKRs = await loadData();
+    setSelectedOKRId(refreshedOKRs[0]?.id ?? null);
+    setCreating(false);
+    setShowCreateDialog(false);
+    setNewOKR({
+      objective: "",
+      status: "on-track",
+      quarter: "",
+      key_results: [],
+    });
+    setNewKeyResult({ description: "", progress: 0, target: 100 });
+    toast({ title: "OKR créé" });
+  };
+
+  const handleUpdateOKR = async (
+    okrId: number,
+    updates: Partial<OKR>,
+  ): Promise<boolean> => {
     const success = await okrService.updateOKR(okrId, updates);
-    if (success) {
-      toast({ title: "Succès", description: "OKR mis à jour" });
-      loadData();
+
+    if (!success) {
+      toast({
+        title: "Modification non enregistrée",
+        description: "Vérifiez votre connexion puis réessayez.",
+        variant: "destructive",
+      });
+      return false;
     }
+
+    setOKRs((current) =>
+      current.map((okr) => (okr.id === okrId ? { ...okr, ...updates } : okr)),
+    );
+    return true;
   };
 
-  const handleUpdateKeyResult = async (okr: OKR, krIndex: number, newProgress: number) => {
-    const keyResults = Array.isArray(okr.key_results) ? okr.key_results : [];
-    const updatedKeyResults = keyResults.map((kr, index) =>
-      index === krIndex ? { ...kr, progress: newProgress } : kr
+  const updateKeyResults = (okr: OKR, keyResults: KeyResult[]) =>
+    handleUpdateOKR(okr.id, { key_results: keyResults });
+
+  const handleUpdateKeyResultProgress = (
+    okr: OKR,
+    keyResultIndex: number,
+    percentage: number,
+  ) =>
+    updateKeyResults(
+      okr,
+      getKeyResults(okr).map((keyResult, index) =>
+        index === keyResultIndex
+          ? { ...keyResult, progress: percentage, target: 100 }
+          : keyResult,
+      ),
     );
 
-    const success = await okrService.updateOKR(okr.id, { key_results: updatedKeyResults });
-    if (success) {
-      toast({ title: "Succès", description: "Progression mise à jour" });
-      loadData();
+  const handleUpdateKeyResultDescription = (
+    okr: OKR,
+    keyResultIndex: number,
+    description: string,
+  ) =>
+    updateKeyResults(
+      okr,
+      getKeyResults(okr).map((keyResult, index) =>
+        index === keyResultIndex ? { ...keyResult, description } : keyResult,
+      ),
+    );
+
+  const handleRemoveKeyResult = (okr: OKR, keyResultIndex: number) =>
+    updateKeyResults(
+      okr,
+      getKeyResults(okr).filter((_, index) => index !== keyResultIndex),
+    );
+
+  const handleAddResultToOKR = async (okr: OKR) => {
+    const description = resultToAdd.description.trim();
+    if (!description) {
+      toast({
+        title: "Description requise",
+        description: "Décrivez le résultat clé à ajouter.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const saved = await updateKeyResults(okr, [
+      ...getKeyResults(okr),
+      { ...resultToAdd, description },
+    ]);
+    if (saved) {
+      setResultToAdd({ description: "", progress: 0, target: 100 });
+      setShowAddResult(false);
     }
   };
 
-  const handleDeleteOKR = async (okrId: number) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet OKR ?')) {
-      const success = await okrService.deleteOKR(okrId);
-      if (success) {
-        toast({ title: "Succès", description: "OKR supprimé" });
-        setExpandedOKRId(null);
-        loadData();
-      }
+  const handleDeleteOKR = async () => {
+    if (!okrToDelete) return;
+    const deletedOKRId = okrToDelete.id;
+    const success = await okrService.deleteOKR(deletedOKRId);
+
+    if (!success) {
+      toast({
+        title: "Suppression impossible",
+        description: "L’OKR n’a pas pu être supprimé.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    const remainingOKRs = okrs.filter((okr) => okr.id !== deletedOKRId);
+    setOKRs(remainingOKRs);
+    setSelectedOKRId((currentId) =>
+      currentId === deletedOKRId ? (remainingOKRs[0]?.id ?? null) : currentId,
+    );
+    setOKRToDelete(null);
+    toast({ title: "OKR supprimé" });
   };
 
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      'on-track': 'On Track',
-      'at-risk': 'At Risk',
-      'off-track': 'Off Track'
-    };
-    return labels[status as keyof typeof labels] || status;
-  };
+  const filteredOKRs = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase().trim();
+    return okrs.filter((okr) => {
+      const matchesSearch =
+        !normalizedQuery ||
+        okr.objective.toLowerCase().includes(normalizedQuery) ||
+        okr.quarter?.toLowerCase().includes(normalizedQuery);
+      const matchesStatus =
+        filterStatus === "all" || okr.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [filterStatus, okrs, searchQuery]);
 
-  const getStatusBadgeClass = (status: string) => {
-    const classes = {
-      'on-track': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800',
-      'at-risk': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
-      'off-track': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800',
-    };
-    return classes[status as keyof typeof classes] || '';
-  };
+  const selectedOKR =
+    filteredOKRs.find((okr) => okr.id === selectedOKRId) ||
+    filteredOKRs[0] ||
+    null;
 
-  const getProgressBarClass = (status: string) => {
-    const classes = {
-      'on-track': '[&>div]:bg-green-500',
-      'at-risk': '[&>div]:bg-yellow-500',
-      'off-track': '[&>div]:bg-red-500',
-    };
-    return classes[status as keyof typeof classes] || '';
-  };
+  const selectedKeyResults = selectedOKR ? getKeyResults(selectedOKR) : [];
+  const overallProgress = calculateOverallProgress(selectedKeyResults);
 
-  const calculateOverallProgress = (keyResults: KeyResult[] | string): number => {
-    if (typeof keyResults === 'string') return 0;
-    if (keyResults.length === 0) return 0;
-
-    const totalProgress = keyResults.reduce((sum, kr) => {
-      const percentage = (kr.progress / kr.target) * 100;
-      return sum + percentage;
-    }, 0);
-
-    return Math.round(totalProgress / keyResults.length);
+  const stats = {
+    total: okrs.length,
+    onTrack: okrs.filter((okr) => okr.status === "on-track").length,
+    atRisk: okrs.filter((okr) => okr.status === "at-risk").length,
+    average: okrs.length
+      ? Math.round(
+          okrs.reduce(
+            (total, okr) =>
+              total + calculateOverallProgress(getKeyResults(okr)),
+            0,
+          ) / okrs.length,
+        )
+      : 0,
   };
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6">
-        <div className="h-9 w-64 bg-muted animate-pulse rounded" />
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
-        ))}
+      <div className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-[1480px] p-5 sm:p-8">
+        <div className="h-10 w-52 animate-pulse rounded-lg bg-muted" />
+        <div className="mt-8 grid min-h-[640px] overflow-hidden rounded-2xl border border-border/60 lg:grid-cols-[340px_1fr]">
+          <div className="space-y-3 border-r border-border/60 bg-muted/20 p-4">
+            {[...Array(6)].map((_, index) => (
+              <div key={index} className="h-24 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
+          <div className="space-y-8 p-8 lg:p-12">
+            <div className="h-12 w-2/3 animate-pulse rounded-xl bg-muted" />
+            <div className="h-48 animate-pulse rounded-xl bg-muted" />
+            <div className="h-40 animate-pulse rounded-xl bg-muted" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-[1480px] p-4 sm:p-6 lg:p-8">
+      <header className="mb-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">OKRs</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {okrs.filter(o => o.status === 'on-track').length} on track · {okrs.filter(o => o.status === 'at-risk').length} à risque · {okrs.filter(o => o.status === 'off-track').length} off-track
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Performance framework
+          </p>
+          <h1 className="text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+            Objectifs & résultats clés
+          </h1>
+          <p className="mt-2 max-w-[62ch] text-sm leading-6 text-muted-foreground">
+            Gardez chaque objectif lisible et mettez à jour les résultats clés
+            avec un pourcentage unique.
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? <><X className="h-4 w-4 mr-2" />Annuler</> : <><Plus className="h-4 w-4 mr-2" />Nouvel OKR</>}
-        </Button>
-      </div>
 
-      {/* Form */}
-      {showForm && (
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleAddOKR} className="space-y-4">
-              <h3 className="text-lg font-semibold">➕ Nouvel OKR</h3>
+        <div className="flex flex-wrap items-end gap-6">
+          <dl className="flex divide-x divide-border/70">
+            {[
+              { label: "Objectifs", value: stats.total },
+              { label: "Dans les temps", value: stats.onTrack },
+              { label: "À risque", value: stats.atRisk },
+              { label: "Moyenne", value: `${stats.average}%` },
+            ].map(({ label, value }) => (
+              <div key={label} className="px-4 first:pl-0">
+                <dd className="font-mono text-xl font-semibold tabular-nums">
+                  {value}
+                </dd>
+                <dt className="mt-0.5 text-[11px] text-muted-foreground">
+                  {label}
+                </dt>
+              </div>
+            ))}
+          </dl>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Objectif (Objective) *</label>
-                  <Input
-                    value={newOKR.objective}
-                    onChange={(e) => setNewOKR({ ...newOKR, objective: e.target.value })}
-                    placeholder="Ex: Augmenter l'engagement utilisateur"
-                    required
-                  />
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="h-10 rounded-xl px-4 active:scale-[0.98]">
+                <Plus className="mr-2 h-4 w-4" weight="bold" />
+                Nouvel OKR
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl tracking-[-0.035em]">
+                  Créer un objectif
+                </DialogTitle>
+                <DialogDescription>
+                  Définissez l’objectif, puis les résultats qui permettront de le
+                  mesurer.
+                </DialogDescription>
+              </DialogHeader>
+
+              <form onSubmit={handleAddOKR} className="mt-2 space-y-6">
+                <div className="grid gap-4 sm:grid-cols-[1fr_170px]">
+                  <div className="space-y-2">
+                    <label htmlFor="okr-objective" className="text-sm font-medium">
+                      Objectif
+                    </label>
+                    <Input
+                      id="okr-objective"
+                      value={newOKR.objective}
+                      onChange={(event) =>
+                        setNewOKR({ ...newOKR, objective: event.target.value })
+                      }
+                      placeholder="Ex. Accélérer la création de valeur"
+                      className="h-11 rounded-xl"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="okr-quarter" className="text-sm font-medium">
+                      Période
+                    </label>
+                    <Input
+                      id="okr-quarter"
+                      value={newOKR.quarter}
+                      onChange={(event) =>
+                        setNewOKR({ ...newOKR, quarter: event.target.value })
+                      }
+                      placeholder="T3 2026"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Statut</label>
+                <div className="space-y-2">
+                  <label htmlFor="okr-status" className="text-sm font-medium">
+                    Statut initial
+                  </label>
                   <Select
                     value={newOKR.status}
-                    onValueChange={(value) => setNewOKR({ ...newOKR, status: value as OKR['status'] })}
+                    onValueChange={(value) =>
+                      setNewOKR({
+                        ...newOKR,
+                        status: value as OKR["status"],
+                      })
+                    }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      id="okr-status"
+                      className="h-11 max-w-56 rounded-xl"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="on-track">🟢 On Track</SelectItem>
-                      <SelectItem value="at-risk">🟡 At Risk</SelectItem>
-                      <SelectItem value="off-track">🔴 Off Track</SelectItem>
+                      <SelectItem value="on-track">Dans les temps</SelectItem>
+                      <SelectItem value="at-risk">À risque</SelectItem>
+                      <SelectItem value="off-track">Hors trajectoire</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Trimestre</label>
-                  <Input
-                    value={newOKR.quarter}
-                    onChange={(e) => setNewOKR({ ...newOKR, quarter: e.target.value })}
-                    placeholder="Ex: Q1 2025"
-                  />
-                </div>
-              </div>
-
-              {/* Key Results */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium">Key Results *</label>
-                  <span className="text-sm text-muted-foreground">
-                    {newOKR.key_results.length} KR{newOKR.key_results.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-
-                {/* Existing KRs */}
-                {newOKR.key_results.map((kr, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 bg-muted rounded-md">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{kr.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Progression: {kr.progress}/{kr.target}
+                <section className="space-y-3 border-t border-border/70 pt-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold">Résultats clés</h3>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Ajoutez au moins un indicateur mesurable.
                       </p>
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {newOKR.key_results.length}
+                    </span>
+                  </div>
+
+                  {newOKR.key_results.map((keyResult, index) => (
+                    <div
+                      key={`${keyResult.description}-${index}`}
+                      className="flex items-center gap-3 rounded-xl bg-muted/35 p-3"
+                    >
+                      <span className="grid h-6 w-6 place-items-center rounded-md bg-background font-mono text-[11px]">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm">
+                        {keyResult.description}
+                      </span>
+                      <span className="font-mono text-sm font-semibold">
+                        {keyResult.progress}%
+                      </span>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() =>
+                          setNewOKR((current) => ({
+                            ...current,
+                            key_results: current.key_results.filter(
+                              (_, itemIndex) => itemIndex !== index,
+                            ),
+                          }))
+                        }
+                        aria-label={`Retirer ${keyResult.description}`}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  <div className="grid gap-3 rounded-xl border border-dashed p-3 sm:grid-cols-[1fr_120px_auto]">
+                    <Input
+                      value={newKeyResult.description}
+                      onChange={(event) =>
+                        setNewKeyResult({
+                          ...newKeyResult,
+                          description: event.target.value,
+                        })
+                      }
+                      placeholder="Décrire le résultat clé"
+                      className="h-10 rounded-lg"
+                    />
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={newKeyResult.progress}
+                        onChange={(event) =>
+                          setNewKeyResult({
+                            ...newKeyResult,
+                            progress: Math.min(
+                              100,
+                              Math.max(0, Number(event.target.value)),
+                            ),
+                          })
+                        }
+                        className="h-10 rounded-lg pr-8 font-mono"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        %
+                      </span>
                     </div>
                     <Button
                       type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleRemoveKeyResult(index)}
+                      variant="outline"
+                      onClick={addResultToDraft}
+                      className="rounded-lg"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      Ajouter
                     </Button>
                   </div>
-                ))}
+                </section>
 
-                {/* Add KR Form */}
-                <div className="p-4 border rounded-md space-y-3">
-                  <Input
-                    placeholder="Description du Key Result"
-                    value={newKR.description}
-                    onChange={(e) => setNewKR({ ...newKR, description: e.target.value })}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Progression actuelle"
-                      value={newKR.progress}
-                      onChange={(e) => setNewKR({ ...newKR, progress: parseInt(e.target.value) || 0 })}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Cible"
-                      value={newKR.target}
-                      onChange={(e) => setNewKR({ ...newKR, target: parseInt(e.target.value) || 100 })}
-                    />
-                  </div>
-                  <Button type="button" size="sm" variant="outline" onClick={handleAddKeyResult}>
-                    <Plus className="h-4 w-4 mr-2" /> Ajouter ce KR
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowCreateDialog(false)}
+                  >
+                    Annuler
                   </Button>
-                </div>
-              </div>
+                  <Button type="submit" disabled={creating}>
+                    {creating ? "Création…" : "Créer l’OKR"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
 
-              <div className="flex gap-2">
-                <Button type="submit">✅ Créer l'OKR</Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                  Annuler
+      <div className="grid min-h-[650px] overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_26px_70px_-48px_rgba(24,24,20,0.45)] lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
+        <aside className="border-b border-border/70 bg-muted/20 lg:border-b-0 lg:border-r">
+          <div className="space-y-3 border-b border-border/70 p-4">
+            <div className="relative">
+              <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un objectif"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="h-10 rounded-xl border-border/60 bg-background pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Effacer la recherche"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-9 rounded-xl border-border/60 bg-background text-xs">
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="on-track">Dans les temps</SelectItem>
+                <SelectItem value="at-risk">À risque</SelectItem>
+                <SelectItem value="off-track">Hors trajectoire</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="max-h-[310px] overflow-y-auto p-2 lg:max-h-[calc(100dvh-18rem)]">
+            {filteredOKRs.map((okr) => {
+              const progress = calculateOverallProgress(getKeyResults(okr));
+              const status = STATUS_CONFIG[okr.status];
+              const selected = selectedOKR?.id === okr.id;
+
+              return (
+                <button
+                  key={okr.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedOKRId(okr.id);
+                    setShowAddResult(false);
+                  }}
+                  className={`group/list mb-1 w-full rounded-xl p-3.5 text-left outline-none transition-[background-color,color,transform] duration-200 focus-visible:ring-2 focus-visible:ring-ring ${
+                    selected
+                      ? "bg-[#20231e] text-[#f7f7f2] shadow-[0_14px_30px_-24px_rgba(20,24,18,0.8)] dark:bg-[#eceee7] dark:text-[#181a16]"
+                      : "hover:translate-x-0.5 hover:bg-background"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${status.dotClassName}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-start justify-between gap-3">
+                        <span className="line-clamp-2 text-sm font-semibold leading-5">
+                          {okr.objective}
+                        </span>
+                        <CaretRight
+                          className={`mt-0.5 h-3.5 w-3.5 shrink-0 transition-transform group-hover/list:translate-x-0.5 ${
+                            selected ? "opacity-80" : "text-muted-foreground"
+                          }`}
+                          weight="bold"
+                        />
+                      </span>
+                      <span
+                        className={`mt-2 flex items-center justify-between gap-3 text-[11px] ${
+                          selected
+                            ? "text-[#bdc3b4] dark:text-[#55594f]"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        <span>{okr.quarter || status.label}</span>
+                        <span className="font-mono">{progress}%</span>
+                      </span>
+                      <span
+                        className={`mt-2 block h-1 overflow-hidden rounded-full ${
+                          selected
+                            ? "bg-white/15 dark:bg-black/10"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <span
+                          className={`block h-full rounded-full ${
+                            selected
+                              ? "bg-[#d4dfaa] dark:bg-[#596446]"
+                              : status.dotClassName
+                          }`}
+                          style={{
+                            transform: `translateX(-${100 - progress}%)`,
+                          }}
+                        />
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+
+            {!filteredOKRs.length && (
+              <div className="px-4 py-14 text-center">
+                <Target className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-3 text-sm font-medium">
+                  {okrs.length ? "Aucun résultat" : "Aucun objectif pour le moment"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {okrs.length
+                    ? "Modifiez la recherche ou le statut."
+                    : "Créez un objectif et son premier résultat clé."}
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <main className="min-w-0">
+          {selectedOKR ? (
+            <div className="p-5 sm:p-7 lg:p-10 xl:p-12">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  <Target className="h-4 w-4" weight="duotone" />
+                  OKR-{String(selectedOKR.id).padStart(3, "0")}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setOKRToDelete(selectedOKR)}
+                  className="h-8 rounded-lg px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash className="mr-1.5 h-4 w-4" />
+                  Supprimer
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* OKRs List */}
-      <div className="space-y-4">
-        {okrs.map((okr) => {
-          const isExpanded = expandedOKRId === okr.id;
-          const keyResults = Array.isArray(okr.key_results) ? okr.key_results : [];
-          const overallProgress = calculateOverallProgress(okr.key_results);
+              <div className="mt-5 max-w-4xl">
+                <InlineTextEdit
+                  value={selectedOKR.objective}
+                  placeholder="Intitulé de l’objectif"
+                  ariaLabel="Intitulé de l’objectif"
+                  required
+                  onSave={(objective) =>
+                    handleUpdateOKR(selectedOKR.id, { objective })
+                  }
+                  displayClassName="py-1 text-3xl font-semibold leading-tight tracking-[-0.045em] sm:text-4xl"
+                  inputClassName="h-14 rounded-xl text-2xl font-semibold tracking-[-0.03em]"
+                  iconClassName="mt-2 h-5 w-5 opacity-40"
+                />
+              </div>
 
-          return (
-            <Card
-              key={okr.id}
-              className={`hover:shadow-lg transition-all duration-300 hover:scale-[1.01] ${isExpanded ? 'ring-2 ring-primary shadow-lg' : ''}`}
-            >
-              <CardHeader
-                className="cursor-pointer"
-                onClick={() => setExpandedOKRId(isExpanded ? null : okr.id)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">{okr.objective}</CardTitle>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${getStatusBadgeClass(okr.status)}`}>
-                        {getStatusLabel(okr.status)}
-                      </span>
-                      {okr.quarter && (
-                        <span className="text-sm text-muted-foreground">
-                          {okr.quarter}
-                        </span>
-                      )}
+              <div className="mt-10 grid gap-10 border-t border-border/70 pt-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.6fr)]">
+                <section>
+                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Résultats clés
+                      </p>
+                      <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">
+                        Mesures de réussite
+                      </h2>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold">{overallProgress}%</div>
-                    <div className="text-xs text-muted-foreground">Progression globale</div>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                {/* Key Results */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm">Key Results:</h4>
-                  {keyResults.map((kr, index) => {
-                    const krProgress = (kr.progress / kr.target) * 100;
-                    return (
-                      <div key={index} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>{kr.description}</span>
-                          <span className="font-medium">
-                            {kr.progress}/{kr.target}
-                          </span>
-                        </div>
-                        <Progress value={Math.min(krProgress, 100)} className={`h-1.5 ${getProgressBarClass(okr.status)}`} />
-
-                        {/* Slider pour modifier la progression quand étendu */}
-                        {isExpanded && (
-                          <div className="pt-2">
-                            <Slider
-                              value={[kr.progress]}
-                              max={kr.target}
-                              step={1}
-                              onValueChange={(value) => handleUpdateKeyResult(okr, index, value[0])}
-                              className="cursor-pointer"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Edit Panel */}
-                {isExpanded && (
-                  <div className="pt-4 mt-4 border-t space-y-3">
-                    <h4 className="font-semibold text-sm">Modifier le statut</h4>
-
-                    <Select
-                      value={okr.status}
-                      onValueChange={(value) => handleUpdateOKR(okr.id, { status: value as OKR['status'] })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddResult((visible) => !visible)}
+                      className="rounded-xl"
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="on-track">🟢 On Track</SelectItem>
-                        <SelectItem value="at-risk">🟡 At Risk</SelectItem>
-                        <SelectItem value="off-track">🔴 Off Track</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {showAddResult ? (
+                        <X className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Plus className="mr-2 h-4 w-4" weight="bold" />
+                      )}
+                      {showAddResult ? "Fermer" : "Ajouter un résultat"}
+                    </Button>
+                  </div>
 
-                    <div className="flex gap-2">
+                  {showAddResult && (
+                    <div className="mt-5 grid gap-3 rounded-2xl bg-[#f0f1eb] p-4 dark:bg-[#1a1c18] sm:grid-cols-[1fr_110px_auto]">
+                      <Input
+                        value={resultToAdd.description}
+                        onChange={(event) =>
+                          setResultToAdd({
+                            ...resultToAdd,
+                            description: event.target.value,
+                          })
+                        }
+                        placeholder="Décrire le résultat clé"
+                        className="h-10 rounded-xl bg-background"
+                        autoFocus
+                      />
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={resultToAdd.progress}
+                          onChange={(event) =>
+                            setResultToAdd({
+                              ...resultToAdd,
+                              progress: Math.min(
+                                100,
+                                Math.max(0, Number(event.target.value)),
+                              ),
+                            })
+                          }
+                          className="h-10 rounded-xl bg-background pr-8 font-mono"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          %
+                        </span>
+                      </div>
                       <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setExpandedOKRId(null)}
-                        className="flex-1"
+                        onClick={() => void handleAddResultToOKR(selectedOKR)}
+                        className="rounded-xl"
                       >
-                        Fermer
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDeleteOKR(okr.id)}
-                      >
-                        🗑️ Supprimer
+                        Ajouter
                       </Button>
                     </div>
+                  )}
+
+                  <div className="mt-5 divide-y divide-border/70 border-y border-border/70">
+                    {selectedKeyResults.map((keyResult, index) => (
+                      <div key={`${selectedOKR.id}-${index}`} className="py-6">
+                        <PercentageEditor
+                          value={getKeyResultPercentage(keyResult)}
+                          onSave={(percentage) =>
+                            handleUpdateKeyResultProgress(
+                              selectedOKR,
+                              index,
+                              percentage,
+                            )
+                          }
+                          label={
+                            <div className="flex min-w-0 items-start gap-3">
+                              <span className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted font-mono text-[11px] text-muted-foreground">
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <InlineTextEdit
+                                value={keyResult.description}
+                                placeholder="Décrire le résultat clé"
+                                ariaLabel={`Résultat clé ${index + 1}`}
+                                required
+                                onSave={(description) =>
+                                  handleUpdateKeyResultDescription(
+                                    selectedOKR,
+                                    index,
+                                    description,
+                                  )
+                                }
+                                displayClassName="py-1 text-sm font-medium leading-6"
+                                iconClassName="mt-1 opacity-35"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() =>
+                                  void handleRemoveKeyResult(selectedOKR, index)
+                                }
+                                aria-label={`Supprimer ${keyResult.description}`}
+                              >
+                                <Trash className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          }
+                          ariaLabel={`Progression de ${keyResult.description}`}
+                          barClassName={
+                            STATUS_CONFIG[selectedOKR.status].barClassName
+                          }
+                          controlClassName="rounded-xl"
+                          progressClassName="mt-3 h-2 rounded-full"
+                        />
+                      </div>
+                    ))}
+
+                    {!selectedKeyResults.length && (
+                      <div className="py-10 text-center">
+                        <Circle className="mx-auto h-5 w-5 text-muted-foreground" />
+                        <p className="mt-3 text-sm font-medium">
+                          Aucun résultat clé
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Ajoutez une première mesure de réussite.
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                </section>
+
+                <aside className="h-fit rounded-2xl bg-[#20231e] p-6 text-[#f3f5ee] dark:bg-[#e7eadf] dark:text-[#1d201a]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#aeb5a4] dark:text-[#687061]">
+                    Progression globale
+                  </p>
+                  <div className="mt-4 font-mono text-6xl font-semibold tracking-[-0.08em]">
+                    {overallProgress}
+                    <span className="ml-1 text-2xl text-[#aeb5a4] dark:text-[#687061]">
+                      %
+                    </span>
+                  </div>
+                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10 dark:bg-black/10">
+                    <div
+                      className="h-full origin-left rounded-full bg-[#d4dfaa] transition-transform duration-300 dark:bg-[#68764f]"
+                      style={{ transform: `scaleX(${overallProgress / 100})` }}
+                    />
+                  </div>
+
+                  <div className="mt-7 space-y-5 border-t border-white/10 pt-6 dark:border-black/10">
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#aeb5a4] dark:text-[#687061]">
+                        Statut
+                      </label>
+                      <Select
+                        value={selectedOKR.status}
+                        onValueChange={(value) =>
+                          void handleUpdateOKR(selectedOKR.id, {
+                            status: value as OKR["status"],
+                          })
+                        }
+                      >
+                        <SelectTrigger
+                          className={`mt-2 h-10 rounded-xl ${
+                            STATUS_CONFIG[selectedOKR.status].className
+                          }`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="on-track">Dans les temps</SelectItem>
+                          <SelectItem value="at-risk">À risque</SelectItem>
+                          <SelectItem value="off-track">
+                            Hors trajectoire
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#aeb5a4] dark:text-[#687061]">
+                        Période
+                      </span>
+                      <InlineTextEdit
+                        value={selectedOKR.quarter}
+                        placeholder="Ajouter une période"
+                        ariaLabel={`Période de ${selectedOKR.objective}`}
+                        onSave={(quarter) =>
+                          handleUpdateOKR(selectedOKR.id, {
+                            quarter: quarter || null,
+                          })
+                        }
+                        displayClassName="mt-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-[#f3f5ee] hover:bg-white/10 dark:border-black/10 dark:bg-black/5 dark:text-[#1d201a]"
+                        inputClassName="mt-2 h-10 rounded-xl border-white/15 bg-white/10 text-[#f3f5ee] dark:border-black/15 dark:bg-black/5 dark:text-[#1d201a]"
+                        iconClassName="opacity-50"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-[#bdc3b7] dark:text-[#596052]">
+                      <span>Résultats suivis</span>
+                      <span className="font-mono font-semibold">
+                        {selectedKeyResults.length}
+                      </span>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          ) : (
+            <div className="grid min-h-[650px] place-items-center p-8 text-center">
+              <div>
+                <Target
+                  className="mx-auto h-8 w-8 text-muted-foreground"
+                  weight="duotone"
+                />
+                <h2 className="mt-4 text-lg font-semibold">
+                  Aucun objectif sélectionné
+                </h2>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                  Créez un OKR ou modifiez les filtres pour ouvrir son détail.
+                </p>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
 
-      {okrs.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Aucun OKR trouvé. Créez votre premier objectif !
-          </CardContent>
-        </Card>
-      )}
+      <AlertDialog
+        open={Boolean(okrToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setOKRToDelete(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cet OKR ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {okrToDelete?.objective} et ses résultats clés seront supprimés
+              définitivement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Conserver</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleDeleteOKR()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

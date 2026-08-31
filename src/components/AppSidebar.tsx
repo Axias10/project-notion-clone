@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Settings, Home, CheckSquare, FolderKanban, Target, Users, Bell, FileText, BarChart2 } from "lucide-react";
+import {
+  Bell,
+  ChartLineUp,
+  CheckSquare,
+  FolderSimple,
+  GearSix,
+  House,
+  MagnifyingGlass,
+  Note,
+  Target,
+  UsersThree,
+} from "@phosphor-icons/react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -14,172 +25,137 @@ import {
 } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 
+const navigation = [
+  { to: "/dashboard", label: "Vue d’ensemble", icon: House },
+  { to: "/tasks", label: "Tâches", icon: CheckSquare },
+  { to: "/projects", label: "Projets", icon: FolderSimple },
+  { to: "/okrs", label: "OKR", icon: Target },
+  { to: "/team", label: "Équipe", icon: UsersThree },
+  { to: "/notes", label: "Notes", icon: Note },
+  { to: "/reports", label: "Rapports", icon: ChartLineUp },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+];
+
 export function AppSidebar() {
   const { open } = useSidebar();
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
-  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      if (q.includes('tâche') || q.includes('tache') || q.includes('task')) {
-        navigate('/tasks');
-      } else if (q.includes('projet') || q.includes('project')) {
-        navigate('/projects');
-      } else if (q.includes('okr') || q.includes('objectif')) {
-        navigate('/okrs');
-      } else if (q.includes('équipe') || q.includes('equipe') || q.includes('team') || q.includes('membre')) {
-        navigate('/team');
-      } else if (q.includes('note')) {
-        navigate('/notes');
-      } else if (q.includes('notif') || q.includes('alerte')) {
-        navigate('/notifications');
-      } else if (q.includes('rapport') || q.includes('report') || q.includes('analytics') || q.includes('stats')) {
-        navigate('/reports');
-      } else {
-        navigate('/dashboard');
-      }
-      setSearchQuery('');
+  const handleSearch = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter" || !searchQuery.trim()) return;
+
+    const query = searchQuery.toLowerCase().trim();
+    if (query.includes("tâche") || query.includes("tache") || query.includes("task")) {
+      navigate("/tasks");
+    } else if (query.includes("projet") || query.includes("project")) {
+      navigate("/projects");
+    } else if (query.includes("okr") || query.includes("objectif")) {
+      navigate("/okrs");
+    } else if (
+      query.includes("équipe") ||
+      query.includes("equipe") ||
+      query.includes("team") ||
+      query.includes("membre")
+    ) {
+      navigate("/team");
+    } else if (query.includes("note")) {
+      navigate("/notes");
+    } else if (query.includes("notif") || query.includes("alerte")) {
+      navigate("/notifications");
+    } else if (
+      query.includes("rapport") ||
+      query.includes("report") ||
+      query.includes("analytics") ||
+      query.includes("stats")
+    ) {
+      navigate("/reports");
+    } else if (query.includes("paramètre") || query.includes("setting")) {
+      navigate("/settings");
+    } else {
+      navigate("/dashboard");
     }
+    setSearchQuery("");
   };
 
   return (
-    <Sidebar className="border-r border-border/50">
-      <SidebarContent className="p-4">
-        <div className="mb-8">
-          <h2 className="px-3 text-[15px] font-bold mb-5 text-foreground tracking-tight">
-            TeamHub
-          </h2>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-[14px] w-[14px] text-muted-foreground" />
-            <Input
-              placeholder="Rechercher... (Entrée)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearch}
-              className="pl-8 h-8 text-sm bg-muted/40 border-0 focus-visible:ring-0 focus-visible:bg-muted/60 transition-all rounded-md"
-            />
+    <Sidebar className="border-r border-sidebar-border/80">
+      <SidebarContent className="flex h-full flex-col p-3">
+        <div className="mb-7 px-1 pt-1">
+          <div className="flex min-h-11 items-center gap-3 px-2">
+            <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-white p-1.5 shadow-sm dark:bg-[#eceee7]">
+              <img
+                src="/panth-logo.svg"
+                alt=""
+                className="h-full w-full object-contain"
+              />
+            </span>
+            {open && (
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-semibold tracking-[-0.02em]">
+                  Pantheon
+                </span>
+                <span className="block truncate text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Capital Management
+                </span>
+              </span>
+            )}
           </div>
+
+          {open && (
+            <div className="relative mt-5">
+              <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Accès rapide"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={handleSearch}
+                className="h-9 rounded-xl border-0 bg-muted/55 pl-9 text-xs focus-visible:bg-background focus-visible:ring-1"
+              />
+              <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border bg-background px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                Entrée
+              </kbd>
+            </div>
+          )}
         </div>
 
-        <SidebarGroup>
+        <SidebarGroup className="p-0">
+          {open && (
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Navigation
+            </p>
+          )}
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/dashboard"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <Home className="h-[18px] w-[18px]" />
-                    {open && <span>Dashboard</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/tasks"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <CheckSquare className="h-[18px] w-[18px]" />
-                    {open && <span>Tâches</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/projects"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <FolderKanban className="h-[18px] w-[18px]" />
-                    {open && <span>Projets</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/okrs"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <Target className="h-[18px] w-[18px]" />
-                    {open && <span>OKRs</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/team"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <Users className="h-[18px] w-[18px]" />
-                    {open && <span>Équipe</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/notes"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <FileText className="h-[18px] w-[18px]" />
-                    {open && <span>Notes</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/reports"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <BarChart2 className="h-[18px] w-[18px]" />
-                    {open && <span>Rapports</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/notifications"
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors group text-muted-foreground hover:text-foreground"
-                    activeClassName="bg-muted/80 text-foreground font-medium"
-                  >
-                    <Bell className="h-[18px] w-[18px]" />
-                    {open && <span>Notifications</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarMenu className="space-y-1">
+              {navigation.map(({ to, label, icon: Icon }) => (
+                <SidebarMenuItem key={to}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={to}
+                      className="group flex items-center gap-3 rounded-xl px-2.5 py-2 text-[13px] text-muted-foreground transition-[background-color,color,transform] duration-200 hover:translate-x-0.5 hover:bg-muted/70 hover:text-foreground"
+                      activeClassName="bg-[#e6e9df] font-semibold text-[#20231e] dark:bg-[#282c25] dark:text-[#eef2e5]"
+                    >
+                      <Icon className="h-[18px] w-[18px] shrink-0" weight="duotone" />
+                      {open && <span>{label}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto pt-4 border-t border-border/30">
-          <SidebarMenu className="space-y-0.5">
+        <div className="mt-auto border-t border-sidebar-border/80 pt-3">
+          <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <button className="flex items-center gap-2.5 px-2 py-1.5 rounded-md text-[14px] hover:bg-muted/60 transition-colors w-full text-muted-foreground hover:text-foreground">
-                  <Settings className="h-[18px] w-[18px]" />
+                <NavLink
+                  to="/settings"
+                  className="group flex items-center gap-3 rounded-xl px-2.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                  activeClassName="bg-[#e6e9df] font-semibold text-[#20231e] dark:bg-[#282c25] dark:text-[#eef2e5]"
+                >
+                  <GearSix className="h-[18px] w-[18px] shrink-0" weight="duotone" />
                   {open && <span>Paramètres</span>}
-                </button>
+                </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
