@@ -19,7 +19,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'okrs'
-          AND column_name = 'quarter'
+          AND column_name = 'quarter's
           AND data_type IN ('integer', 'bigint', 'smallint')
     ) THEN
         -- Convertir en TEXT
