@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useToast } from '../hooks/use-toast';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Check, Loader2 } from 'lucide-react';
 import '../styles/editor.css';
 
 export default function Notes() {
@@ -107,22 +107,6 @@ export default function Notes() {
       setNotes([]);
     }
     setLoading(false);
-  };
-
-  const handleSaveNote = async () => {
-    if (!selectedNote || !editor) return;
-
-    setIsSaving(true);
-    const content = editor.getHTML();
-    const success = await noteService.updateNote(selectedNote.id, {
-      title: editingTitle,
-      content: content,
-    });
-
-    if (success) {
-      setNotes(notes.map(n => n.id === selectedNote.id ? { ...n, title: editingTitle, content } : n));
-    }
-    setIsSaving(false);
   };
 
   const debouncedSave = useCallback(() => {
@@ -284,12 +268,18 @@ export default function Notes() {
                 placeholder="Titre de la note"
               />
 
-              <div className="flex items-center gap-2">
-                <Button onClick={handleSaveNote} disabled={isSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
-                </Button>
-                {isSaving && <span className="text-sm text-muted-foreground">Sauvegarde en cours...</span>}
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Sauvegarde...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    Enregistré
+                  </>
+                )}
               </div>
             </div>
 
